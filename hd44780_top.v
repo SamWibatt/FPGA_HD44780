@@ -37,10 +37,14 @@ module state_timer(
         end_strobe_reg <= 0;
         st_count <= DAT_I;
     end else if(|count) begin
+        //count is not 0 - raise strobe in the last tick before it goes 0
         if(count == 1) begin
             end_strobe_reg <= 1;
         end
         st_count <= st_count-1;
+    end else begin
+        //counter is 0
+        end_strobe_reg <= 0;
     end
 
     assign end_strobe = end_strobe_reg;

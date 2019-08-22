@@ -1,0 +1,4 @@
+*.fst
+sim_tb_out.txt
+sim_tb_err.txt
+*.vvp
