@@ -37,7 +37,12 @@ Well, deal
 parameter SYSFREQ = 48_000_000;
 
 
-parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
+//parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
+//per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
+// If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
+// is this right?
+parameter STATE_TIMER_BITS = $clog2(SYSFREQ / 10);
+
 module state_timer(
     input wire RST_I,
     input wire CLK_I,
