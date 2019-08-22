@@ -20,6 +20,23 @@ at posedge CLK_I:
          glue strobe down
 */
 
+/*
+MAY NEED TO REDO a bit bc there are only a few timings
+and ... do we really need all these flipflops just to
+delay? Bc the delay values are:
+100 ms <=== only once and gobbles up like 5 more ffs
+4.1 ms ... than this
+3 ms   ... and this = 30 * 100us? = 18 ffs
+100 us ... 13 ffs @ 48Hz
+53 us - at 48MHz, divide down by 2523? = 12 ffs
+...so like 23 FFs
+Indeed, (1/10) / (1/48000000) =~ 4_800_000
+which takes 23 bits - huh
+Well, deal 
+*/
+parameter SYSFREQ = 48_000_000;
+
+
 parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
 module state_timer(
     input wire RST_I,
