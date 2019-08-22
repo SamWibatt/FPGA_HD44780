@@ -39,6 +39,10 @@ Indeed, (1/10) / (1/48000000) =~ 4_800_000
 which takes 23 bits - huh
 Well, deal 
 */
+
+//System clock frequency. Might want to define somewhere more globally like a configs include.
+//RECALL that up5k builtin 48MHz is not very accurate, might want to fudge the speed down by 10%
+//or so to avoid flakiness
 `define G_SYSFREQ 48_000_000
 
 
