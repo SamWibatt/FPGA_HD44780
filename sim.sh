@@ -3,6 +3,8 @@
 echo "SIMULATION =============================================================================================== " > sim_tb_out.txt
 #if we don't do this, error file will be 0 bytes on successful run
 #echo "SIMULATION =============================================================================================== " > sim_tb_err.txt
+# but we need to do SOMETHING or they pile up: let's just delete it
+rm -f sim_tb_err.txt
 
 # simulation, old: DO IT THIS WAY TO SEE THE SENSIBLE SIMULATION TRACE
 iverilog -D SIM_STEP -o hd44780_tb.vvp hd44780_controller.v hd44780_tb.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
