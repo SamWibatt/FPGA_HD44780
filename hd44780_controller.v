@@ -46,7 +46,8 @@ Well, deal
 `ifdef SIM_STEP
 //10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
 //let's do sim at 10K, which is the low freq osc on the chip!
-`define G_SYSFREQ 10_250
+`define G_SYSFREQ 48_000_000
+//10_250
 `else
 `define G_SYSFREQ 48_000_000
 `endif
@@ -71,7 +72,9 @@ Well, deal
 // is this right?
 //and why a tenth? BC of the max delay, 100ms, being a tenth of a second
 //MAKE SURE THIS IS RIGHT on some edge cases - yay, 10240 got 10 bits and 10250 got 11 bits.
-`define BITS_TO_HOLD_TENTH(x) ($ceil($clog2($itor(x)/$itor(10))))
+//but maybe 1023 should get 10, 1024 11 - try x+1 where x was
+//no, wait, (x/10)+1, not (x+1)/10
+`define BITS_TO_HOLD_TENTH(x) ($ceil($clog2(($itor(x)/$itor(10))+1) ))
 `define G_STATE_TIMER_BITS (`BITS_TO_HOLD_TENTH(`G_SYSFREQ))
 
 //*************************************************************************************
