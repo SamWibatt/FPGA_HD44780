@@ -75,11 +75,11 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 	
     reg [STATE_TIMER_BITS-1:0] st_count = 0;
 	//reg [22:0] st_count = 0;
-   // reg end_strobe_reg = 0;
+   reg end_strobe_reg = 0;
 
 	always @(posedge CLK_I) begin
 		if(RST_I == 1) begin
-//zero out counter, lose reg?
+			st_count <= 0;
 			end_strobe_reg <= 0;
 		end else if(start_strobe == 1) begin
 			end_strobe_reg <= 0;
@@ -97,8 +97,9 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 	end
 		
 // hey why not just do
-	assign end_strobe = (st_count == 1);
-    //assign end_strobe = end_strobe_reg;
+//	assign end_strobe = (st_count == 1);
+	//might screw up if load a 1
+    assign end_strobe = end_strobe_reg;
 
 endmodule
 
