@@ -10,7 +10,7 @@ module hd44780_top(
     output wire lcd_rs,                 //R/S pin - R/~W is tied low
     output wire lcd_e,                  //enable!
     output wire [3:0] lcd_data,         //data
-    output wire alive_led,              //alive-blinky, use rgb green
+    output wire alive_led,              //alive-blinky, use rgb green ... from controller
     output wire led_b,                  //blue led bc rgb driver needs it
     output wire led_r                   //red led
     end
@@ -47,39 +47,8 @@ module hd44780_top(
     defparam rgb.RGB1_CURRENT = "0b000001";     //see SiliconBlue ICE Technology doc
     defparam rgb.RGB2_CURRENT = "0b000001";
 
-    //***********************************************************************************************************
-    //***********************************************************************************************************
-    //***********************************************************************************************************
-    // HEREAFTER UNCHANGED **************************************************************************************
-    //***********************************************************************************************************
-    //***********************************************************************************************************
-    //***********************************************************************************************************
-
-    /*
-    // was this for small simulation clocks hd44780_controller #(.NEWMASK_CLK_BITS(9)) controller(
-    // now let's try with real clock values, or as close as I can get - REAL ones take too long, but let's move it out more,
-    // like have... 16 bits? default is 26, which is 1000 times longer.
-    // one problem with this organization is that I can't get at the blinky's parameter - can I? Can I add a param to controller that
-    // passes it along? Let us try. We want a blinky mask clock to be about 3 full cycles of 8... let's say 32x as fast as newmask clk so 5 fewer bits?
-    // let's try 6 - ok, that proportion looks not bad!
-    // but in practice I did 7 - so let's do that here
-    parameter CTRL_MASK_CLK_BITS=30;      //is 28 default in controller, which was for 12MHz - so 30? try it. Good!
-    wire led_outwire;
-    hd44780_controller
-        #(.NEWMASK_CLK_BITS(CTRL_MASK_CLK_BITS),.BLINKY_MASK_CLK_BITS(CTRL_MASK_CLK_BITS-7))
-        controller(
-        .i_clk(clk),
-        .button_internal(button_acthi),          //will this work?
-        .dip_switch(dip_swicth),
-        .the_led(led_outwire),                   //was the_led), now the driver above is doing that
-        .o_led0(o_led0),
-        .o_led1(o_led1),
-        .o_led2(o_led2),
-        .o_led3(o_led3)
-    );
-    */
-
-    wire led_outwire;
+    wire led_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
+    //assign led_outwire =
 
     //alive blinky
     parameter PWMbits = 3;              // for dimming test, try having LED on only 1/2^PWMbits of the time
@@ -91,5 +60,18 @@ module hd44780_top(
         led_g_reg <= (&pwmctr) & led_outwire;    //when counter is all ones, turn on (if we're in a blink)
         pwmctr <= pwmctr + 1;
     end
+
+    //we DO also want a wishbone syscon and a controller!
+    wire wb_reset;
+    wire wb_clk;
+    hd44780_syscon syscon(
+        .i_clk(clk),
+        .RST_O(wb_reset),
+        .CLK_O(wb_clk)
+        );
+
+    hd44780_controller controller(
+
+        );
 
 endmodule

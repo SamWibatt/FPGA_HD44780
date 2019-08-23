@@ -1,29 +1,13 @@
 /*
 	hd44780 controller
 
-    a "main" for the hardware
+    a bit different from my previous projects' controllers; this is just the LCD driver.
+    top and syscon handle the top-level stuff.
 
 */
 `default_nettype	none
 
 
-// state delay module
-/*
-at posedge CLK_I:
-    if reset:
-        glue everything down
-    else if strobe input:
-        -- interrupt any ongoing countdown
-        glue strobe output down
-        load whatever is in the data input lines into current count
-    else if current count is not 0:
-        decrement current count
-        if current count is 1:
-            raise strobe
-    else (current count IS 0):
-        lower strobe
-         glue strobe down
-*/
 
 /*
 MAY NEED TO REDO a bit bc there are only a few timings
@@ -47,7 +31,7 @@ Well, deal
 `ifndef G_SYSFREQ
 `ifdef SIM_STEP
 //10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
-//now it's 10240 gets 11, 1023 gets 10 - because 1024 needs 10 bits when you think about it 
+//now it's 10240 gets 11, 1023 gets 10 - because 1024 needs 10 bits when you think about it
 //let's do sim at 10K, which is the low freq osc on the chip!
 `define G_SYSFREQ 10_240
 `else
@@ -73,18 +57,18 @@ Well, deal
 //per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
 // If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
 // is this right?
-//and why a tenth? BC of the max delay, 100ms, being a tenth of a second
 //MAKE SURE THIS IS RIGHT on some edge cases - yay, 10240 got 10 bits and 10250 got 11 bits.
 //but maybe 1023 should get 10, 1024 11 - try x+1 where x was
 //no, wait, (x/10)+1, not (x+1)/10
-`define BITS_TO_HOLD_TENTH(x) ($ceil($clog2(($itor(x)/$itor(10))+1) ))
-`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_TENTH(`G_SYSFREQ))
+//and now it is right.
+`define BITS_TO_HOLD_100MS(x) ($ceil($clog2(($itor(x)/$itor(10))+1) ))
+`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
 
 //*************************************************************************************
 //aha, it's the backtick before referring to a define that makes them work like numbers
 //*************************************************************************************
 
-module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `BITS_TO_HOLD_TENTH(SYSFREQ)) (
+module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `BITS_TO_HOLD_100MS(SYSFREQ)) (
     input wire RST_I,
     input wire CLK_I,
 	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
@@ -145,15 +129,18 @@ endmodule
 
 // MAIN ********************************************************************************************************************************************
 module hd44780_controller(
-    input i_clk,
-    input button_internal,       //active high button. Pulled up and inverted in top module.
-    input wire[7:0] dip_switch,     // dip swicth swicths, active low, not inverted by top mod.
+    input RST_I,                //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+    input CLK_I,
+    input STB_I,                //to let this module know rs and lcd_data are ready and to do its thing.
+    input rs,                   //register select - command or data, will go to LCD RS pin
+    input wire[7:0] lcd_data,   // byte to send to LCD, one nybble at a time
+    output busy,
 	output alive_led,			//this is THE LED, the green one that shows the controller is alive
 );
 
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
-	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE 
+	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
 											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
 											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
 	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
@@ -163,21 +150,7 @@ module hd44780_controller(
 
 	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
-    // SYSCON ============================================================================================================================
-    // Wishbone-like syscon responsible for clock and reset.
-
-    //after https://electronics.stackexchange.com/questions/405363/is-it-possible-to-generate-internal-RST_O-pulse-in-verilog-with-machxo3lf-fpga
-    //tis worky, drops RST_O to 0 at 15 clocks. ADJUST THIS IF IT'S INSUFFICIENT. may want to differ with frequency, but it's an on-chip thing so many not need to
-	//so long as the speed check passes
-    reg [3:0] rst_cnt = 0;
-    wire RST_O = ~rst_cnt[3];       // My RST_O is active high, original was active low; I think that's why it was called rst_n
-    wire CLK_O;                     // avoid default_nettype error
-	always @(posedge CLK_O)         // see if I can use the output that way
-		if( RST_O )                 // active high RST_O
-            rst_cnt <= rst_cnt + 1;
-
-	assign CLK_O = i_clk;
-	// END SYSCON ========================================================================================================================
+    //moving syscon stuff to top....??? tb will need it too
 
 
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
@@ -196,6 +169,27 @@ module hd44780_controller(
 		.start_strobe(timer_start),		//and here?
 		.end_strobe(timer_done)
 	);
+
+    reg in_reset_n = 0;                 //0 means in reset so post-reset can spot
+    always @(posedge CLK_I) begin
+        if(RST_I) begin
+            //glue stuff down
+            //maybe set some register so we know we've been in reset, let's say
+            //in_reset_n = 0 when we're in reset
+            in_reset_n <= 0;
+        end else begin
+            //need a bit in here somewhere about how if reset is freshly released
+            //the in_reset register
+            if(~in_reset_n) begin
+                //send busy and reset LCD 
+                in_reset_n <= 1;            //dismiss just-reset active low flag
+            end else if (STB_I) begin
+                //aha, raise the
+            end else begin
+                //state-machiney stuff
+            end
+        end
+    end
 
 
 endmodule
