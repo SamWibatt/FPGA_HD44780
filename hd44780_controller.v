@@ -45,9 +45,9 @@ Well, deal
 //or so to avoid flakiness
 `ifdef SIM_STEP
 //10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
+//now it's 10240 gets 11, 1023 gets 10 - because 1024 needs 10 bits when you think about it 
 //let's do sim at 10K, which is the low freq osc on the chip!
-`define G_SYSFREQ 48_000_000
-//10_250
+`define G_SYSFREQ 10_240
 `else
 `define G_SYSFREQ 48_000_000
 `endif
