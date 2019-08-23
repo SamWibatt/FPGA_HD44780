@@ -37,29 +37,42 @@ delay? Bc the delay values are:
 ...so like 23 FFs
 Indeed, (1/10) / (1/48000000) =~ 4_800_000
 which takes 23 bits - huh
-Well, deal 
+Well, deal
 */
 
-//System clock frequency. Might want to define somewhere more globally like a configs include.
+//System clock frequency, Hz. Might want to define somewhere more globally like a configs include.
 //RECALL that up5k builtin 48MHz is not very accurate, might want to fudge the speed down by 10%
 //or so to avoid flakiness
+`ifdef SIM_STEP
+//10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
+//let's do sim at 10K, which is the low freq osc on the chip!
+`define G_SYSFREQ 10_250
+`else
 `define G_SYSFREQ 48_000_000
+`endif
 
+//then values we load into the delay thing, why not
+//MAKE SURE THESE ARE AT LEAST 1 (likely not a problem with real clock freqs)
+`define DELAY_100MS ($ceil($itor(`G_SYSFREQ) / $itor(10)))
+//I think this works - gets correct 2544 out of 48MHz
+//gets 1 out of 100Hz
+//6 out of 100KHz - yup, ceil(5.3) - looks like it oughta work!
+`define DELAY_53US ($ceil(($itor(`G_SYSFREQ) * $itor(53)) / $itor(1_000_000)))
+//4.1 ms - call it 41/10_000
+`define DELAY_4P1MS ($ceil(($itor(`G_SYSFREQ) * $itor(41)) / $itor(10_000)))
+//3 ms
+`define DELAY_3MS ($ceil(($itor(`G_SYSFREQ) * $itor(3)) / $itor(1_000)))
+//100 us
+`define DELAY_100US ($ceil(($itor(`G_SYSFREQ) * $itor(100)) / $itor(1_000_000)))
 
 //parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
 //per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
 // If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
 // is this right?
 //and why a tenth? BC of the max delay, 100ms, being a tenth of a second
-`define BITS_TO_HOLD_TENTH(x) ($clog2(x/10))
+//MAKE SURE THIS IS RIGHT on some edge cases - yay, 10240 got 10 bits and 10250 got 11 bits.
+`define BITS_TO_HOLD_TENTH(x) ($ceil($clog2($itor(x)/$itor(10))))
 `define G_STATE_TIMER_BITS (`BITS_TO_HOLD_TENTH(`G_SYSFREQ))
-
-
-// VERILOG COMPILER HATES THESE DEFINES, I get 
-//hd44780_controller.v:54: error: Unable to bind parameter `STATE_TIMER_BITS' in `hd44780_tb.controller.timey'
-//hd44780_controller.v:54: error: Range expressions must be constant.
-//let's try the parameters-up-front way
-// a la https://stackoverflow.com/questions/31054022/in-verilog-how-can-i-define-the-width-of-a-port-at-instantiation
 
 //*************************************************************************************
 //aha, it's the backtick before referring to a define that makes them work like numbers
@@ -72,10 +85,21 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
     input wire start_strobe,            // causes timer to load
     output wire end_strobe              // nudges caller to advance state
     );
-	
+
+    // DEBUG ===============================================================================
+    // can I print out defines like this? yarp!
+    initial begin
+        $display("DELAY_100MS is %d",`DELAY_100MS);
+        $display("DELAY_4P1MS is %d",`DELAY_4P1MS);
+        $display("DELAY_3MS is %d",`DELAY_3MS);
+        $display("DELAY_100US is %d",`DELAY_100US);
+        $display("DELAY_53US is %d",`DELAY_53US);
+        $display("G_STATE_TIMER_BITS is %d",`G_STATE_TIMER_BITS);
+    end
+    // END DEBUG ===========================================================================
+
     reg [STATE_TIMER_BITS-1:0] st_count = 0;
-	//reg [22:0] st_count = 0;
-   reg end_strobe_reg = 0;
+    reg end_strobe_reg = 0;
 
 	always @(posedge CLK_I) begin
 		if(RST_I == 1) begin
@@ -95,15 +119,13 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 			end_strobe_reg <= 0;
 		end
 	end
-		
-// hey why not just do
-//	assign end_strobe = (st_count == 1);
+
+    // hey why not just do
+    //	assign end_strobe = (st_count == 1);
 	//might screw up if load a 1
     assign end_strobe = end_strobe_reg;
 
 endmodule
-
-
 
 
 //***********************************************************************************************************
@@ -126,13 +148,13 @@ module hd44780_controller(
 	output o_led2,          // All LED logic is active high and inverted; alive-LEDs are all active low IRL
 	output o_led3
 );
-	
+
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
-	parameter REDBLINKBITS = 23;			// at 12 MHz this is ok
-	reg[REDBLINKBITS-1:0] redblinkct = 0;
+	parameter GREENBLINKBITS = 23;			// at 12 MHz this is ok
+	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
 	always @(posedge i_clk) begin
-		redblinkct <= redblinkct + 1;
+		greenblinkct <= greenblinkct + 1;
 	end
 
 	//now let's try alive leds for the modules
@@ -145,7 +167,7 @@ module hd44780_controller(
 	assign o_led3 = ~debounce_alive;                //otherLEDs[3];
 	assign o_led2 = ~mentor_alive;	               //otherLEDs[2];
 	assign o_led1 = ~blinky_alive;                  //otherLEDs[1];
-	assign o_led0 = ~redblinkct[REDBLINKBITS-1];	   //controller_alive, always block just above this
+	assign o_led0 = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
     // SYSCON ============================================================================================================================
     // Wishbone-like syscon responsible for clock and reset.
@@ -162,7 +184,7 @@ module hd44780_controller(
 	assign CLK_O = i_clk;
 	// END SYSCON ========================================================================================================================
 
-	
+
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
     //input wire RST_I,
     //input wire CLK_I,
@@ -178,7 +200,7 @@ module hd44780_controller(
 	reg[`G_STATE_TIMER_BITS-1:0] timer_value = 0;
 	reg timer_start = 0;
 	wire timer_done;
-	
+
 	//should just be state_timer timey
 	//state_timer #(.SYSFREQ(slow_freq)) timey 			//should figure out bits by itself - but this is gross, need to do the bits calc here and in the module :P but ok
 	state_timer timey
@@ -189,11 +211,6 @@ module hd44780_controller(
 		.start_strobe(timer_start),		//and here?
 		.end_strobe(timer_done)
 	);
-
-
-	//DUMB STOPGAP WARNING AVOIDER - FIX IN TB/TOP
-    parameter NEWMASK_CLK_BITS=30;		//was 28 for 12MHz clock - now 48MHz - default for "build"
-	parameter BLINKY_MASK_CLK_BITS = NEWMASK_CLK_BITS - 7;	//default for build, swh //3;			//default for short sim
 
 
 endmodule

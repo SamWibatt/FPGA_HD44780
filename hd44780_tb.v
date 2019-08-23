@@ -48,7 +48,8 @@ module hd44780_tb;
     // but in practice I did 7 - so let's do that here
     parameter CTRL_MASK_CLK_BITS=16; //20;    //26 is "real?";  FROM CALCS IN THE LOOP BELOW I THINK 25 WILL BE IT     //works at 16 and 20
     hd44780_controller
-        #(.NEWMASK_CLK_BITS(CTRL_MASK_CLK_BITS),.BLINKY_MASK_CLK_BITS(CTRL_MASK_CLK_BITS-7)) controller(
+        //#(.NEWMASK_CLK_BITS(CTRL_MASK_CLK_BITS),.BLINKY_MASK_CLK_BITS(CTRL_MASK_CLK_BITS-7)) 
+        controller(
         .i_clk(clk),
         .button_internal(buttonhi),
         .dip_switch(dipswitch_wires),
