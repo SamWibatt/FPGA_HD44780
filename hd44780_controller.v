@@ -43,6 +43,8 @@ Well, deal
 //System clock frequency, Hz. Might want to define somewhere more globally like a configs include.
 //RECALL that up5k builtin 48MHz is not very accurate, might want to fudge the speed down by 10%
 //or so to avoid flakiness
+//and let's only do this if G_SYSFREQ is not declared elsewhere, like on a command line
+`ifndef G_SYSFREQ
 `ifdef SIM_STEP
 //10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
 //now it's 10240 gets 11, 1023 gets 10 - because 1024 needs 10 bits when you think about it 
@@ -50,6 +52,7 @@ Well, deal
 `define G_SYSFREQ 10_240
 `else
 `define G_SYSFREQ 48_000_000
+`endif
 `endif
 
 //then values we load into the delay thing, why not
@@ -90,7 +93,7 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
     );
 
     // DEBUG ===============================================================================
-    // can I print out defines like this? yarp!
+    // can I print out defines like this? yarp! Shouldn't synthesize anything
     initial begin
         $display("DELAY_100MS is %d",`DELAY_100MS);
         $display("DELAY_4P1MS is %d",`DELAY_4P1MS);
@@ -145,38 +148,27 @@ module hd44780_controller(
     input i_clk,
     input button_internal,       //active high button. Pulled up and inverted in top module.
     input wire[7:0] dip_switch,     // dip swicth swicths, active low, not inverted by top mod.
-	output the_led,			//this is THE LED, the green one that follows the pattern.
-	output o_led0,			//these others are just external and they
-	output o_led1,          // act as "alive" indicators for the sub-modules.
-	output o_led2,          // All LED logic is active high and inverted; alive-LEDs are all active low IRL
-	output o_led3
+	output alive_led,			//this is THE LED, the green one that shows the controller is alive
 );
 
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
-	parameter GREENBLINKBITS = 23;			// at 12 MHz this is ok
+	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE 
+											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
+											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
 	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
 	always @(posedge i_clk) begin
 		greenblinkct <= greenblinkct + 1;
 	end
 
-	//now let's try alive leds for the modules
-	wire blinky_alive;
-	wire mentor_alive;
-    wire debounce_alive;
-
-	// sean changes: Upduino LEDs active low unlike icestick. Invert here to allow LED logic in the modules to remain
-    // active high.
-	assign o_led3 = ~debounce_alive;                //otherLEDs[3];
-	assign o_led2 = ~mentor_alive;	               //otherLEDs[2];
-	assign o_led1 = ~blinky_alive;                  //otherLEDs[1];
-	assign o_led0 = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
+	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
     // SYSCON ============================================================================================================================
     // Wishbone-like syscon responsible for clock and reset.
 
     //after https://electronics.stackexchange.com/questions/405363/is-it-possible-to-generate-internal-RST_O-pulse-in-verilog-with-machxo3lf-fpga
-    //tis worky, drops RST_O to 0 at 15 clocks. ADJUST THIS IF IT'S INSUFFICIENT
+    //tis worky, drops RST_O to 0 at 15 clocks. ADJUST THIS IF IT'S INSUFFICIENT. may want to differ with frequency, but it's an on-chip thing so many not need to
+	//so long as the speed check passes
     reg [3:0] rst_cnt = 0;
     wire RST_O = ~rst_cnt[3];       // My RST_O is active high, original was active low; I think that's why it was called rst_n
     wire CLK_O;                     // avoid default_nettype error
@@ -189,17 +181,7 @@ module hd44780_controller(
 
 
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
-    //input wire RST_I,
-    //input wire CLK_I,
-	//input wire [22:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
-    //input wire start_strobe,            // causes timer to load
-    //output wire end_strobe              // nudges caller to advance state
-
-	//just to test - and got 10 bits, which would hold 1/10 of 1000!
-	//parameter slow_freq = 10_000;
-	//parameter slow_bits = `BITS_TO_HOLD_TENTH(slow_freq);
-	//reg[slow_bits-1:0] timer_value = 0;
-	//really use
+	//annoying that parameterizing needs a separate calculation on bits to hold tenth, but we'll figure it out
 	reg[`G_STATE_TIMER_BITS-1:0] timer_value = 0;
 	reg timer_start = 0;
 	wire timer_done;
