@@ -50,6 +50,7 @@ Well, deal
 //per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
 // If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
 // is this right?
+//and why a tenth? BC of the max delay, 100ms, being a tenth of a second
 `define BITS_TO_HOLD_TENTH(x) ($clog2(x/10))
 `define G_STATE_TIMER_BITS (`BITS_TO_HOLD_TENTH(`G_SYSFREQ))
 
@@ -78,6 +79,7 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 
 	always @(posedge CLK_I) begin
 		if(RST_I == 1) begin
+//zero out counter, lose reg?
 			end_strobe_reg <= 0;
 		end else if(start_strobe == 1) begin
 			end_strobe_reg <= 0;
@@ -94,7 +96,9 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 		end
 	end
 		
-    assign end_strobe = end_strobe_reg;
+// hey why not just do
+	assign end_strobe = (st_count == 1);
+    //assign end_strobe = end_strobe_reg;
 
 endmodule
 
