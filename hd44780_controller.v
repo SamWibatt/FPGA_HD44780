@@ -68,7 +68,7 @@ Well, deal
 //aha, it's the backtick before referring to a define that makes them work like numbers
 //*************************************************************************************
 
-module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `BITS_TO_HOLD_100MS(SYSFREQ)) (
+module hd44780_state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `BITS_TO_HOLD_100MS(SYSFREQ)) (
     input wire RST_I,
     input wire CLK_I,
 	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
@@ -117,7 +117,7 @@ module state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS 
 
 endmodule
 
-module nybble_sender(
+module hd44780_nybble_sender(
     input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
     input CLK_I,
     input STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
@@ -193,8 +193,8 @@ module hd44780_controller(
 	wire timer_done;
 
 	//should just be state_timer timey
-	//state_timer #(.SYSFREQ(slow_freq)) timey 			//should figure out bits by itself - but this is gross, need to do the bits calc here and in the module :P but ok
-	state_timer timey
+	//hd44780_state_timer #(.SYSFREQ(slow_freq)) timey 			//should figure out bits by itself - but this is gross, need to do the bits calc here and in the module :P but ok
+	hd44780_state_timer timey
 	(
 		.RST_I(RST_O),
 		.CLK_I(CLK_O),
@@ -305,19 +305,30 @@ module hd44780_controller(
         RESET_LCD_EMSET = 9,        // Step 9. Instruction 0000b (0h), then 0110b (6h), then delay > 53 us or check BF
                                     // Step 10. Initialization ends
         RESET_LCD_DISPON = 10,      // Step 11. Instruction 0000b (0h), then 1100b (0Ch), then delay > 53 us or check BF
-        // [...]
+        // states related to sending a command or character byte one nybble at a time 
         SENDCHAR_START = ,
 
 
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
+            //**************************************************************************************
+            //**************************************************************************************
+            //**************************************************************************************
+            //* SHOULD THERE BE A PIECE IN HERE ABOUT HOW IF WE ARE NEWLY RESET, SHUT THE LCD OFF?
+            // i.e. if active == 1, ... hm.
+            //**************************************************************************************
+            //**************************************************************************************
+            //**************************************************************************************
+
             //in reset, zero everything out
             greenblinkct <= 0;
             busy_reg <= 0;
             timer_start <= 0;
             timer_value <= 0;
             active <= 0;            // positive edge in "active" shows reset is newly done so init LCD
+
+
         end else begin
             if(~active) begin
                 //aha, we've just exited reset. send busy and reset LCD
