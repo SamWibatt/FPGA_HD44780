@@ -140,6 +140,20 @@ module hd44780_nybble_sender(
             // put the nybble on the output lines
             // set r/s appropriately
             // - wait for TAS (address setup time), 60ns (pg 49 of 'sheet)
+// so it looks like a clock tick at 48 MHz is about 20.833 nanos.
+// is it even worth dealing with timer module for this?
+// if we did state machine as a counter and set the nybble to the output lines
+		// and set r/s at state i, then then raise e (below) at i+3...
+		// ok, but how to adjust for clock speed? 
+		// not going to be a sitch where the # ffs is overwhelming
+		// bc that would mean a very high clock speed
+		// could try a define like with the longer delays, clog2 etc,
+		// and then a case where it's `TICK_SETRS: then a
+		// `TICK_SETRS + `DUR_60NS:
+		// advance state by counting up, or down as it may be better, until 
+		// reach 0 and go idle.
+		// so count down, and calculate the meaningful states accordingly.
+		// move noodling to wiki
             // - here is where TCYCE starts
             // raise e
             // - wait for PWEH (pulse width enable high), 450 ns min
