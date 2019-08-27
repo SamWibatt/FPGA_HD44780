@@ -24,7 +24,7 @@ that's the idea
     * Verify timing w sheet, figure out how to tell if the driver violates. Let's only do write, first
     * and **only write ever** BC level shifter to 5 v
     * ....**is level shift necessary? see re hd44780 input levels**
-    * So assert that my driver never sends R/~W low, at least while enable is high
+    * So assert that my driver never sends R/~W high, at least while enable is high
     * Look into hct541 prop delay - worst case is 29ns, typ 13ns
     * Doubt it matters.
     * Also LCD first, wishbone later.
