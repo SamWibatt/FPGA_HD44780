@@ -12,6 +12,11 @@
 import math
 import sys
 
+# tiny utility fiddlement - given a number of nanoseconds, x, figur out how many clock ticks that is in the
+# given freq (Hz)
+#`define TICKS_PER_NS(x) ($ceil(($itor(  x)/$itor(1_000_000_000)) / ($itor(1)/$itor(`G_SYSFREQ))))
+def ticks_per_ns(x,freq):
+    return math.ceil((float(x)/1000000000.0) / (1.0/freq))
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -47,57 +52,50 @@ if __name__ == "__main__":
     #//100 us
     #`define DELAY_100US ($ceil(($itor(`G_SYSFREQ) * $itor(100)) / $itor(1_000_000)))
     delay_100us = math.ceil((g_sysfreq * 100.0) / 1000000.0)
+    # then the number of bits we need to construct the timer module's counter.
+    #//`define BITS_TO_HOLD_100MS(x) ($rtoi($ceil($clog2(($itor(x)/$itor(10))+1) )))
+    # (x/10)+1, not (x+1)/10
+    # we want 11 bits for 1024, 10 bits for 1023, yes?
+    bits_to_hold_100ms = math.ceil(math.log2(int((g_sysfreq / 10.0) + 1.0)))
 
-    ********** OK DO THE REST
+    # shorter delays for the nybble sender, which will do timing with its own little (unless you're running at petaHz) downcounter
+    #//TAS = 60ns, TCYCE = 1000 ns, PWEH = 450 ns
+    #//so: how many clock ticks?
+    #//(450÷1000000000)÷(1÷48000000) = 450ns / 1 48MHz tick = 21.6, so
+    #//ceil of all that
+    #`define TICKS_PER_NS(x) ($ceil(($itor(  x)/$itor(1_000_000_000)) / ($itor(1)/$itor(`G_SYSFREQ))))
+    #`define TAS_TICKS `TICKS_PER_NS(60)
+    ticks_tas = ticks_per_ns(60,g_sysfreq)
+
+    #`define TCYCE_TICKS `TICKS_PER_NS(1000)
+    ticks_tcyce = ticks_per_ns(1000,g_sysfreq)
+
+    #`define PWEH_TICKS `TICKS_PER_NS(450)
+    ticks_pweh = ticks_per_ns(450,g_sysfreq)
+
+    # then the # of bits for the nybble sender's downcounter.
+    # the duration it has to downcount is the E cycle length ticks_tcyce plus the
+    # address setup time, ticks_tas.
+    #`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
+    bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce + ticks_tas)))
+
 
     # output! We need everything to be integers.
-    print("`define G_SYSFREQ   ({})".format(int(math.ceil(g_sysfreq))))
-    print("`define DELAY_53US  ({})".format(int(delay_53us)))
-    print("`define DELAY_100MS ({})".format(int(delay_100ms)))
-    print("`define DELAY_4P1MS ({})".format(int(delay_4p1ms)))
-    print("`define DELAY_3MS   ({})".format(int(delay_3ms)))
-    print("`define DELAY_100US ({})".format(int(delay_100us)))
-
-# Here is all the stuff to define
-'''
-//then values we load into the delay thing, why not
-//MAKE SURE THESE ARE AT LEAST 1 (likely not a problem with real clock freqs)
-`define DELAY_100MS ($ceil($itor(`G_SYSFREQ) / $itor(10)))
-//I think this works - gets correct 2544 out of 48MHz
-//gets 1 out of 100Hz
-//6 out of 100KHz - yup, ceil(5.3) - looks like it oughta work!
-`define DELAY_53US ($ceil(($itor(`G_SYSFREQ) * $itor(53)) / $itor(1_000_000)))
-//4.1 ms - call it 41/10_000
-`define DELAY_4P1MS ($ceil(($itor(`G_SYSFREQ) * $itor(41)) / $itor(10_000)))
-//3 ms
-`define DELAY_3MS ($ceil(($itor(`G_SYSFREQ) * $itor(3)) / $itor(1_000)))
-//100 us
-`define DELAY_100US ($ceil(($itor(`G_SYSFREQ) * $itor(100)) / $itor(1_000_000)))
-
-//parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
-//per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
-// If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
-// is this right?
-//MAKE SURE THIS IS RIGHT on some edge cases - yay, 10240 got 10 bits and 10250 got 11 bits.
-//but maybe 1023 should get 10, 1024 11 - try x+1 where x was
-//no, wait, (x/10)+1, not (x+1)/10
-//and now it is right.
-//...drat, these don't work in yosys
-
-
-//`define BITS_TO_HOLD_100MS(x) ($rtoi($ceil($clog2(($itor(x)/$itor(10))+1) )))
-//`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
-//ok, needed integer arg to clog2
-`define G_STATE_TIMER_BITS ($ceil($clog2( $rtoi($itor(`G_SYSFREQ)/$itor(10)) +1) ))
-
-
-#//TAS = 60ns, TCYCE = 1000 ns, PWEH = 450 ns
-#//so: how many clock ticks?
-#//(450÷1000000000)÷(1÷48000000) = 450ns / 1 48MHz tick = 21.6, so
-#//ceil of all that
-#`define TICKS_PER_NS(x) ($ceil(($itor(  x)/$itor(1_000_000_000)) / ($itor(1)/$itor(`G_SYSFREQ))))
-#`define TAS_TICKS `TICKS_PER_NS(60)
-#`define TCYCE_TICKS `TICKS_PER_NS(1000)
-#`define PWEH_TICKS `TICKS_PER_NS(450)
-#`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
-'''
+    # prefix with H4 as the shortest form of hd44780.
+    print("//automatically generated .inc file for FPGA_HD44780")
+    print("//Created by hd44780_config.py {}\n".format(int(g_sysfreq)))
+    print("//system frequency {}Hz".format(g_sysfreq))
+    print("//1 system clock tick = {} nanoseconds".format((1.0 / g_sysfreq) / (1.0/1000000000.0)))
+    print('\n//"long" delays needed for LCD initialization, in clock ticks')
+    print("`define H4_SYSFREQ       ({})".format(int(math.ceil(g_sysfreq))))
+    print("`define H4_DELAY_53US    ({})".format(int(delay_53us)))
+    print("`define H4_DELAY_100MS   ({})".format(int(delay_100ms)))
+    print("`define H4_DELAY_4P1MS   ({})".format(int(delay_4p1ms)))
+    print("`define H4_DELAY_3MS     ({})".format(int(delay_3ms)))
+    print("`define H4_DELAY_100US   ({})".format(int(delay_100us)))
+    print("`define H4_TIMER_BITS    ({})".format(int(bits_to_hold_100ms)))
+    print("\n//short delays for hd44780 nybble sender, in clock ticks")
+    print("`define H4NS_TICKS_TAS   ({})".format(int(ticks_tas)))
+    print("`define H4NS_TICKS_TCYCE ({})".format(int(ticks_tcyce)))
+    print("`define H4NS_TICKS_PWEH  ({})".format(int(ticks_pweh)))
+    print("`define H4NS_COUNT_BITS  ({})".format(int(bits_to_hold_nsend)))
