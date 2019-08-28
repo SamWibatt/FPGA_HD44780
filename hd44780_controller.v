@@ -24,20 +24,8 @@ which takes 23 bits - huh
 Well, deal
 */
 
-//System clock frequency, Hz. Might want to define somewhere more globally like a configs include.
-//RECALL that up5k builtin 48MHz is not very accurate, might want to fudge the speed down by 10%
-//or so to avoid flakiness
-//and let's only do this if G_SYSFREQ is not declared elsewhere, like on a command line
-`ifndef G_SYSFREQ
-`ifdef SIM_STEP
-//10240 got 10 bits, same 10241 - integer / 10 - sure - let's try 10250 - 11 bits!
-//now it's 10240 gets 11, 1023 gets 10 - because 1024 needs 10 bits when you think about it
-//let's do sim at 10K, which is the low freq osc on the chip!
-`define G_SYSFREQ 10_240
-`else
-`define G_SYSFREQ 48_000_000
-`endif
-`endif
+
+/*
 
 //then values we load into the delay thing, why not
 //MAKE SURE THESE ARE AT LEAST 1 (likely not a problem with real clock freqs)
@@ -68,12 +56,21 @@ Well, deal
 //`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
 //ok, needed integer arg to clog2
 `define G_STATE_TIMER_BITS ($ceil($clog2( $rtoi($itor(`G_SYSFREQ)/$itor(10)) +1) ))
+*/
+
+//new way with include
+
+`ifndef SIM_STEP
+`include hd44780_build_config.inc
+`else
+`include hd44780_sim_config.inc
+`endif
 
 //*************************************************************************************
 //aha, it's the backtick before referring to a define that makes them work like numbers
 //*************************************************************************************
 
-module hd44780_state_timer  //#(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `G_STATE_TIMER_BITS)
+module hd44780_state_timer  #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `G_STATE_TIMER_BITS)
 (
     input wire RST_I,
     input wire CLK_I,
@@ -99,7 +96,7 @@ module hd44780_state_timer  //#(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_
     // END DEBUG ===========================================================================
 
     //drat, yosys hates all my clever bit calculations
-    *********************** FIGURE OUT HOW TO DEAL WITH THAT
+    //*********************** FIGURE OUT HOW TO DEAL WITH THAT
     reg [`G_STATE_TIMER_BITS-1:0] st_count = 0;
     reg end_strobe_reg = 0;
 
@@ -129,15 +126,7 @@ module hd44780_state_timer  //#(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_
 
 endmodule
 
-//TAS = 60ns, TCYCE = 1000 ns, PWEH = 450 ns
-//so: how many clock ticks?
-//(450÷1000000000)÷(1÷48000000) = 450ns / 1 48MHz tick = 21.6, so
-//ceil of all that
-`define TICKS_PER_NS(x) ($ceil(($itor(  x)/$itor(1_000_000_000)) / ($itor(1)/$itor(`G_SYSFREQ))))
-`define TAS_TICKS `TICKS_PER_NS(60)
-`define TCYCE_TICKS `TICKS_PER_NS(1000)
-`define PWEH_TICKS `TICKS_PER_NS(450)
-`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
+// tick defines moved to hd44780_config.py, qv
 
 module hd44780_nybble_sender(
     input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.

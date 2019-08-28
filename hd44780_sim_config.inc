@@ -1,0 +1,6 @@
+`define G_SYSFREQ   (10240)
+`define DELAY_53US  (1)
+`define DELAY_100MS (1024)
+`define DELAY_4P1MS (42)
+`define DELAY_3MS   (31)
+`define DELAY_100US (2)
