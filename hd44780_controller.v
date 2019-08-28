@@ -61,14 +61,20 @@ Well, deal
 //but maybe 1023 should get 10, 1024 11 - try x+1 where x was
 //no, wait, (x/10)+1, not (x+1)/10
 //and now it is right.
-`define BITS_TO_HOLD_100MS(x) ($ceil($clog2(($itor(x)/$itor(10))+1) ))
-`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
+//...drat, these don't work in yosys
+
+
+//`define BITS_TO_HOLD_100MS(x) ($rtoi($ceil($clog2(($itor(x)/$itor(10))+1) )))
+//`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
+//ok, needed integer arg to clog2
+`define G_STATE_TIMER_BITS ($ceil($clog2( $rtoi($itor(`G_SYSFREQ)/$itor(10)) +1) ))
 
 //*************************************************************************************
 //aha, it's the backtick before referring to a define that makes them work like numbers
 //*************************************************************************************
 
-module hd44780_state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `BITS_TO_HOLD_100MS(SYSFREQ)) (
+module hd44780_state_timer  //#(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `G_STATE_TIMER_BITS)
+(
     input wire RST_I,
     input wire CLK_I,
 	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
@@ -78,17 +84,23 @@ module hd44780_state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIM
 
     // DEBUG ===============================================================================
     // can I print out defines like this? yarp! Shouldn't synthesize anything
+    //yosys doesn't like these defines so only do them in iverilog
+    `ifdef SIM_STEP
     initial begin
-        $display("DELAY_100MS is %d",`DELAY_100MS);
+        localparam d100ms = `DELAY_100MS;
+        $display("DELAY_100MS is %d",d100ms);       //this didn't work either
         $display("DELAY_4P1MS is %d",`DELAY_4P1MS);
         $display("DELAY_3MS is %d",`DELAY_3MS);
         $display("DELAY_100US is %d",`DELAY_100US);
         $display("DELAY_53US is %d",`DELAY_53US);
         $display("G_STATE_TIMER_BITS is %d",`G_STATE_TIMER_BITS);
     end
+    `endif
     // END DEBUG ===========================================================================
 
-    reg [STATE_TIMER_BITS-1:0] st_count = 0;
+    //drat, yosys hates all my clever bit calculations
+    *********************** FIGURE OUT HOW TO DEAL WITH THAT
+    reg [`G_STATE_TIMER_BITS-1:0] st_count = 0;
     reg end_strobe_reg = 0;
 
 	always @(posedge CLK_I) begin
@@ -117,43 +129,65 @@ module hd44780_state_timer #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIM
 
 endmodule
 
+//TAS = 60ns, TCYCE = 1000 ns, PWEH = 450 ns
+//so: how many clock ticks?
+//(450÷1000000000)÷(1÷48000000) = 450ns / 1 48MHz tick = 21.6, so
+//ceil of all that
+`define TICKS_PER_NS(x) ($ceil(($itor(  x)/$itor(1_000_000_000)) / ($itor(1)/$itor(`G_SYSFREQ))))
+`define TAS_TICKS `TICKS_PER_NS(60)
+`define TCYCE_TICKS `TICKS_PER_NS(1000)
+`define PWEH_TICKS `TICKS_PER_NS(450)
+`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
+
 module hd44780_nybble_sender(
     input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
     input CLK_I,
     input STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
     input i_rs,                     //register select - command or data, will go to LCD RS pin
-    input wire[3:0] nybble,         //nybble we're sending
-    output wire busy,               //whether this module is busy
-    output wire [7:4] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+    input wire[3:0] i_nybble,       //nybble we're sending
+    output wire o_busy,             //whether this module is busy
+    output wire [3:0] o_lcd_data,   //the data bits we send really are 7:4 - I guess others NC? tied low?
     output wire o_rs,
-    output wire o_e                   //LCD enable pin
+    output wire o_e                 //LCD enable pin
     );
+
+    reg[`NSEND_TIMER_BITS-1:0] STDC = 0;
+    reg e_reg = 0;
+    reg busy_reg = 0;
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
             //reset!
-        end else if (STB_I & ~busy) begin
+            e_reg <= 0;
+            STDC <= 0;
+            busy_reg <= 0;
+        end else if (STB_I & ~busy_reg) begin
             //strobe came along while we're not busy! let's get rolling
-        end else begin
+            e_reg <= 0;
+            STDC <= `TCYCE_TICKS + `TAS_TICKS;      //this should be how long the counter runs
+            busy_reg <= 1;
+        end else if (|STDC) begin
+            STDC <= STDC - 1;           //decrement unless STDC is 0
+
             // our little state machine! All of the following with the appropriate delays
             // ************************* FIND OUT WHAT THE DELAYS ARE from hd44780 'sheet
             // put the nybble on the output lines
             // set r/s appropriately
             // - wait for TAS (address setup time), 60ns (pg 49 of 'sheet)
-// so it looks like a clock tick at 48 MHz is about 20.833 nanos.
-// is it even worth dealing with timer module for this?
-// if we did state machine as a counter and set the nybble to the output lines
-		// and set r/s at state i, then then raise e (below) at i+3...
-		// ok, but how to adjust for clock speed? 
-		// not going to be a sitch where the # ffs is overwhelming
-		// bc that would mean a very high clock speed
-		// could try a define like with the longer delays, clog2 etc,
-		// and then a case where it's `TICK_SETRS: then a
-		// `TICK_SETRS + `DUR_60NS:
-		// advance state by counting up, or down as it may be better, until 
-		// reach 0 and go idle.
-		// so count down, and calculate the meaningful states accordingly.
-		// move noodling to wiki
+            // so it looks like a clock tick at 48 MHz is about 20.833 nanos.
+            // is it even worth dealing with timer module for this?
+            // if we did state machine as a counter and set the nybble to the output lines
+    		// and set r/s at state i, then then raise e (below) at i+3...
+    		// ok, but how to adjust for clock speed?
+    		// not going to be a sitch where the # ffs is overwhelming
+    		// bc that would mean a very high clock speed
+    		// could try a define like with the longer delays, clog2 etc,
+    		// and then a case where it's `TICK_SETRS: then a
+    		// `TICK_SETRS + `DUR_60NS:
+    		// advance state by counting up, or down as it may be better, until
+    		// reach 0 and go idle.
+    		// so count down, and calculate the meaningful states accordingly.
+    		// move noodling to wiki
             // - here is where TCYCE starts
             // raise e
             // - wait for PWEH (pulse width enable high), 450 ns min
@@ -162,9 +196,37 @@ module hd44780_nybble_sender(
             // - wait for rest of TCYCE (Enable cycle time) s.t. to here it's 1000 ns, so
             //     1000 - (TAS + TAH + PWEH) = 1000 - (60 + 450 + 20) = 1000 - 530 = 470 ?
             // - now we can leave, I reckon
+
+            // load state downcounter (call it STDC) with TCYCE_TICKS + TAS_TICKS
+            // while STDC > 0: //watch out for off-by-ones. Precision!
+            // case(STDC)
+            //     `TCYCE_TICKS + `TAS_TICKS: // maybe have a total_ticks define
+            //         this would be where we set rs and o_lcd_data, if they were registers.
+            //         currently I think they could just be assigned, see below.
+            //     `TCYCE_TICKS: //I.e. TAS_TICKS later
+            //         e_reg <= 1;
+            //     `TCYCE_TICKS - `PWEH_TICKS:
+            //         e_reg <= 0;
+            //     etc. If there is anything else but waiting to 0
+            // endcase
+            // STDC <= STDC-1;
+            // assign o_lcd_data = i_nybble; //asyncy, but does it matter?
+            // assign o_rs = i_rs; // similar, none of this matters until e
+            if(STDC == `TCYCE_TICKS) begin      //i.e., TAS_TICKS after start
+                e_reg <= 1;          //raise e
+            end else if(STDC == `TCYCE_TICKS - `PWEH_TICKS) begin      //i.e., PWEH_TICKS after raise e
+                e_reg <= 0;          //lower e
+            end
+        end else begin
+            // counter is 0 - we're done! or continue not to be busy
+            busy_reg <= 0;
         end
     end
 
+    assign o_lcd_data = i_nybble; //asyncy, but does it matter?
+    assign o_rs = i_rs; // similar, none of this matters until e
+    assign o_e = e_reg;
+    assign o_busy = busy_reg;
 
 endmodule
 
@@ -178,7 +240,7 @@ module hd44780_controller(
     output wire busy,
 	output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
     output wire o_rs,
-    output wire [7:4] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+    output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
     output wire o_e                 //LCD enable pin
 );
 
@@ -319,9 +381,9 @@ module hd44780_controller(
         RESET_LCD_EMSET = 9,        // Step 9. Instruction 0000b (0h), then 0110b (6h), then delay > 53 us or check BF
                                     // Step 10. Initialization ends
         RESET_LCD_DISPON = 10,      // Step 11. Instruction 0000b (0h), then 1100b (0Ch), then delay > 53 us or check BF
-        // states related to sending a command or character byte one nybble at a time 
-        SENDCHAR_START = ,
-
+        // states related to sending a command or character byte one nybble at a time
+        SENDCHAR_START = 11
+        ;
 
 
     always @(posedge CLK_I) begin
