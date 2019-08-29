@@ -91,7 +91,8 @@ if __name__ == "__main__":
     # the duration it has to downcount is the E cycle length ticks_tcyce plus the
     # address setup time, ticks_tas.
     #`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
-    bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce + ticks_tas)))
+    # fails in the case of tcyce and tas < 1 bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce + ticks_tas)))
+    bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce) + int(ticks_tas)))
 
 
     # output! We need everything to be integers.
