@@ -22,11 +22,15 @@ def ticks_per_ns(x,freq):
 def make_verilog_number_str(x):
     num = int(x)
     if num < 1000:
-        return str(x)
-    else
+        return str(num)
+    else:
         # ok here figure out how to stick a _ in all the right spots.
-        # I think we could iterate by thousands -
-        WRITE THIS 
+        # ha, can just do this, per https://stackoverflow.com/questions/1823058/how-to-print-number-with-commas-as-thousands-separators/10742904
+        # >>> f'{value:_}'
+        # '48_000_000'
+        # better, '{:_}'.format(value) bc the previous kind needs python 3.7 and people might be a bit behind
+        return '{:_}'.format(num)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -97,15 +101,15 @@ if __name__ == "__main__":
     print("//system frequency {}Hz".format(g_sysfreq))
     print("//1 system clock tick = {} nanoseconds".format((1.0 / g_sysfreq) / (1.0/1000000000.0)))
     print('\n//"long" delays needed for LCD initialization, in clock ticks')
-    print("`define H4_SYSFREQ       ({})".format(int(math.ceil(g_sysfreq))))
-    print("`define H4_DELAY_53US    ({})".format(int(delay_53us)))
-    print("`define H4_DELAY_100MS   ({})".format(int(delay_100ms)))
-    print("`define H4_DELAY_4P1MS   ({})".format(int(delay_4p1ms)))
-    print("`define H4_DELAY_3MS     ({})".format(int(delay_3ms)))
-    print("`define H4_DELAY_100US   ({})".format(int(delay_100us)))
-    print("`define H4_TIMER_BITS    ({})".format(int(bits_to_hold_100ms)))
+    print("`define H4_SYSFREQ       ({})".format(make_verilog_number_str(int(math.ceil(g_sysfreq)))))
+    print("`define H4_DELAY_53US    ({})".format(make_verilog_number_str(int(delay_53us))))
+    print("`define H4_DELAY_100MS   ({})".format(make_verilog_number_str(int(delay_100ms))))
+    print("`define H4_DELAY_4P1MS   ({})".format(make_verilog_number_str(int(delay_4p1ms))))
+    print("`define H4_DELAY_3MS     ({})".format(make_verilog_number_str(int(delay_3ms))))
+    print("`define H4_DELAY_100US   ({})".format(make_verilog_number_str(int(delay_100us))))
+    print("`define H4_TIMER_BITS    ({})".format(make_verilog_number_str(int(bits_to_hold_100ms))))
     print("\n//short delays for hd44780 nybble sender, in clock ticks")
-    print("`define H4NS_TICKS_TAS   ({})".format(int(ticks_tas)))
-    print("`define H4NS_TICKS_TCYCE ({})".format(int(ticks_tcyce)))
-    print("`define H4NS_TICKS_PWEH  ({})".format(int(ticks_pweh)))
-    print("`define H4NS_COUNT_BITS  ({})".format(int(bits_to_hold_nsend)))
+    print("`define H4NS_TICKS_TAS   ({})".format(make_verilog_number_str(int(ticks_tas))))
+    print("`define H4NS_TICKS_TCYCE ({})".format(make_verilog_number_str(int(ticks_tcyce))))
+    print("`define H4NS_TICKS_PWEH  ({})".format(make_verilog_number_str(int(ticks_pweh))))
+    print("`define H4NS_COUNT_BITS  ({})".format(make_verilog_number_str(int(bits_to_hold_nsend))))

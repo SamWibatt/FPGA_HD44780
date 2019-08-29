@@ -5,12 +5,12 @@
 //1 system clock tick = 20.833333333333332 nanoseconds
 
 //"long" delays needed for LCD initialization, in clock ticks
-`define H4_SYSFREQ       (48000000)
-`define H4_DELAY_53US    (2544)
-`define H4_DELAY_100MS   (4800000)
-`define H4_DELAY_4P1MS   (196800)
-`define H4_DELAY_3MS     (144000)
-`define H4_DELAY_100US   (4800)
+`define H4_SYSFREQ       (48_000_000)
+`define H4_DELAY_53US    (2_544)
+`define H4_DELAY_100MS   (4_800_000)
+`define H4_DELAY_4P1MS   (196_800)
+`define H4_DELAY_3MS     (144_000)
+`define H4_DELAY_100US   (4_800)
 `define H4_TIMER_BITS    (23)
 
 //short delays for hd44780 nybble sender, in clock ticks

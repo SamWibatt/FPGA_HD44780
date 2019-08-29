@@ -5,9 +5,9 @@
 //1 system clock tick = 30517.578124999996 nanoseconds
 
 //"long" delays needed for LCD initialization, in clock ticks
-`define H4_SYSFREQ       (32768)
+`define H4_SYSFREQ       (32_768)
 `define H4_DELAY_53US    (2)
-`define H4_DELAY_100MS   (3277)
+`define H4_DELAY_100MS   (3_277)
 `define H4_DELAY_4P1MS   (135)
 `define H4_DELAY_3MS     (99)
 `define H4_DELAY_100US   (4)
