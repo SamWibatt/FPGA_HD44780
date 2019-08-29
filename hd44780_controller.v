@@ -226,6 +226,9 @@ module hd44780_controller(
     reg busy_reg = 0;               //for synching busy flag
     reg active = 0;                 //0 means in reset so post-reset can spot
     reg [3:0] nybble = 0;           //nybble to send to LCD
+	reg already_did_reset = 0;		//if 1, means that the LCD has gone through the power-on reset and should get a different "warm boot" reset,
+									//assuming that it's already in nybble mode. If the caller has put it into some crazy state, feh. Will try to protect against.
+									//SO THIS IS OUTSIDE THE INFLUENCE OF RST_I. it's the LCD's initialized bit, not the controller's... this is probably awful style but ???
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
 	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
@@ -271,10 +274,46 @@ module hd44780_controller(
     //be nice for the presentation of a nybble on the output.
     //here's how UW https://courses.cs.washington.edu/courses/cse370 does it
     //localparam IDLE=0, WAITFORB=1, DONE=2, ERROR=3;
+	
     /* Here is the initialization sequence given in http://web.alfredstate.edu/faculty/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
     Copyright © 2009, 2010, 2012 Donald Weiman
     (weimandn@alfredstate.edu)
+	
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	IMPORTANT: TEST TO SEE WHAT HAPPENS IF WE'VE BEEN USING THE LCD FOR A WHILE AND THEN SEND A RESET. DOES IT WAKE BACK UP PROPERLY?
+	Per https://mil.ufl.edu/3744/docs/lcdmanual/commands.html#Fs, 
+	"This command should be issued only after automatic power-on initialization has occurred, or as part of the module initialization sequence."
+	Let's see if we can't find something a little more definite
+	- datasheet says:
+	Note: Perform the function at the head of the program before executing any instructions (except for the
+	read busy flag and address instruction). From this point, the function set instruction cannot be
+	executed unless the interface data length is changed.
+	- so, may have to do some thing, like a "did power on reset" where if the LCD is known / believed to be powered up and assume it's in nybble mode?
+	- OR, I guess we could send 8-bit mode then 4-bit mode? First try the register. Maybe both! Let's do both.
+	- OR, maybe always do set to 8 bit then set to 4 bit? then see if it works on power-up?
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
+	*****************************************************************************************************************************************************************
 
+	----- if doing the 8-bit then 4-bit:
+	Step -n: wait 100ms... do we need to, if we assume power is on? I guess if you have a single init for cold or warm, do this. Adds 1/10 sec to startup but wev
+
+	Step -n-1 .. 0: contains multitudes. Do we have to do 3 4-bit sends of 0011, like steps 2, 3, 4 below, THEN ANOTHER 0011 instead of steps 5 and 6? LCD pins tied low mean it 
+	will assume N and F are 0, so 1 line and 5x8 font, acceptable. Also prolly send a display off ... only if it's in 8-bit, I can't bc that needs bit 3 to be 1 and it's tied low
+
+	BUT FIRST DON'T WORRY RE THAT, get the power-on case working
+	
+	----- original
     Step 1. Power on, then delay > 100 ms
     There are two different values (with two different references) specified on the datasheet flowchart for this initial delay but neither
     reference is from when the power was first applied. The delay required from power-up must obviously be more than 40 mS and I
@@ -348,6 +387,7 @@ module hd44780_controller(
     // **********************************************
     // SO HERE IS THE LIST OF STATES WE'LL BE DEALING WITH IN THIS MODULE -
     // THIS WILL AMOUNT TO A BUNCH OF USES OF THE TIMER MODULE AND THE NYBBLE SENDER MODULE
+	// ********************** INCOMPLETE! FIX!
     localparam IDLE=0,              // state where we end up after init or char/cmd send
         RESET_LCD_START = 1,        // Step 1. Power on, then delay > 100 ms
         RESET_LCD_FNSET1 = 2,       // Step 2. Instruction 0011b (3h), then delay > 4.1 ms
@@ -370,8 +410,9 @@ module hd44780_controller(
             //**************************************************************************************
             //**************************************************************************************
             //**************************************************************************************
-            //* SHOULD THERE BE A PIECE IN HERE ABOUT HOW IF WE ARE NEWLY RESET, SHUT THE LCD OFF?
+            // SHOULD THERE BE A PIECE IN HERE ABOUT HOW IF WE ARE NEWLY RESET, SHUT THE LCD OFF?
             // i.e. if active == 1, ... hm.
+			// 
             //**************************************************************************************
             //**************************************************************************************
             //**************************************************************************************
@@ -390,6 +431,21 @@ module hd44780_controller(
                 busy_reg <= 1;
                 active <= 1;            //dismiss just-reset condition: now active
                 //************ GO OFF AND DO RESET - HOW? Big state machine below?
+				if(already_did_reset) begin
+					//do "warm boot" reset; possibly for safety's sake, do function set to 8 bit mode then set to 4 bit?
+					//datasheet sez -------
+					//Note: Perform the function at the head of the program before executing any instructions (except for the
+					//read busy flag and address instruction). From this point, the function set instruction cannot be
+					//executed unless the interface data length is changed.
+					//end datasheet sez ---
+					//8-bit-then-4-bit may be a way around the don't-do-function-set-after-init thing from the datasheet
+				end else begin
+					//do power-on reset
+					
+					//and after that, mark that the power-on reset has been done.
+					already_did_reset <= 1;
+					
+				end
             end else if (STB_I & ~busy) begin
                 //Strobe doesn't do anything if we're already busy
                 //aha, raise the busy flag and do whatever it is
