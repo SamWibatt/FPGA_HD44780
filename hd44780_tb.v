@@ -83,7 +83,7 @@ module hd44780_tb;
     //
     //     );
 
-    /* HERE IS THE TESTBENCH FOR THE STATE TIMER */
+    /* HERE IS THE TESTBENCH FOR THE STATE TIMER 
     // ------------------------8<--------------------------------8<-----------------------------------
     // module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_TIMER_BITS = `H4_TIMER_BITS)
     // (
@@ -146,10 +146,11 @@ module hd44780_tb;
         #1000 $finish;
     end
     // ------------------------8<--------------------------------8<-----------------------------------
-    /* END HERE IS THE TB FOR STATE TIMER */
+    END HERE IS THE TB FOR STATE TIMER */
     
-    /* TB FOR NYBBLE SENDER
-    //now here is a tb for a nybble sender!
+    /* TB FOR NYBBLE SENDER */
+    // ------------------------8<--------------------------------8<-----------------------------------
+    //now here is a tb for a nybble sender! DO THIS ONE WITH A HIGH ENOUGH CLOCK SPEED THAT THE COUNTER IN NYBSEN IS MEANINGFUL - trying 12000000
     //module hd44780_nybble_sender(
     //    input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
     //    input CLK_I,
@@ -162,23 +163,39 @@ module hd44780_tb;
     //    output wire o_e                 //LCD enable pin
     //    );
 
+    reg ststrobe = 0;                       //start strobe
+    wire busy;
+    reg rs_reg = 0;
+    reg [3:0] nybbin = 4'b0000;
+    
+    //in real hardware these are package pins
+    wire pin_busy;
+    wire [3:0] pins_data;
+    wire pin_rs;
+    wire pin_e;
+    
     hd44780_nybble_sender nybsen(
         .RST_I(wb_reset),
-        .CLK_I(),
-        .STB_I(),
-        .i_rs(),
-        .i_nybble(),
-        .o_busy(),
-        .o_lcd_data(),
-        .o_rs(),
-        .o_e() 
+        .CLK_I(wb_clk),
+        .STB_I(ststrobe),
+        .i_rs(rs_reg),
+        .i_nybble(nybbin),
+        .o_busy(pin_busy),
+        .o_lcd_data(pins_data),
+        .o_rs(pin_rs),
+        .o_e(pin_e) 
     );
     
     initial begin
         //set up and send some stuff, osberve behavior of nybble sender
-        
+        #18 nybbin = 4'b1011;           //pick a distinctive nybble
+        rs_reg = 1;                       //and send rs high just 'cause
+        #2 ststrobe = 1;
+        #2 ststrobe = 0;
+        #1000 $finish;
     end
-    END TB FOR NYBBLE SENDER */
+    // ------------------------8<--------------------------------8<-----------------------------------
+    /* END TB FOR NYBBLE SENDER */
 
 endmodule
 
