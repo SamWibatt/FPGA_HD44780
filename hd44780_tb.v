@@ -128,6 +128,7 @@ module hd44780_tb;
         #20 ststrobe = 0;       //ok so what this shews is that the timer raises its out strobe n ticks
                                 //after instrobe is raised - if it's 1 tick wide. Better to look at it as
                                 //n-1 ticks after strobe drops, and we want n ticks after strobe drops.
+                                //now fixed
 
 
         //let's try a real degenerate case - but one that's going to come up at slow clock speeds - 1 tick
