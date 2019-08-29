@@ -7,70 +7,36 @@
 */
 `default_nettype	none
 
-
-
-/*
-MAY NEED TO REDO a bit bc there are only a few timings
-and ... do we really need all these flipflops just to
-delay? Bc the delay values are:
-100 ms <=== only once and gobbles up like 5 more ffs
-4.1 ms ... than this
-3 ms   ... and this = 30 * 100us? = 18 ffs
-100 us ... 13 ffs @ 48Hz
-53 us - at 48MHz, divide down by 2523? = 12 ffs
-...so like 23 FFs
-Indeed, (1/10) / (1/48000000) =~ 4_800_000
-which takes 23 bits - huh
-Well, deal
-*/
-
-
-/*
-
-//then values we load into the delay thing, why not
-//MAKE SURE THESE ARE AT LEAST 1 (likely not a problem with real clock freqs)
-`define DELAY_100MS ($ceil($itor(`G_SYSFREQ) / $itor(10)))
-//I think this works - gets correct 2544 out of 48MHz
-//gets 1 out of 100Hz
-//6 out of 100KHz - yup, ceil(5.3) - looks like it oughta work!
-`define DELAY_53US ($ceil(($itor(`G_SYSFREQ) * $itor(53)) / $itor(1_000_000)))
-//4.1 ms - call it 41/10_000
-`define DELAY_4P1MS ($ceil(($itor(`G_SYSFREQ) * $itor(41)) / $itor(10_000)))
-//3 ms
-`define DELAY_3MS ($ceil(($itor(`G_SYSFREQ) * $itor(3)) / $itor(1_000)))
-//100 us
-`define DELAY_100US ($ceil(($itor(`G_SYSFREQ) * $itor(100)) / $itor(1_000_000)))
-
-//parameter STATE_TIMER_BITS = 7;     //will derive counts from clock freq at some point
-//per https://stackoverflow.com/questions/5602167/logarithm-in-verilog,
-// If it is a logarithm base 2 you are trying to do, you can use the built-in function $clog2()
-// is this right?
-//MAKE SURE THIS IS RIGHT on some edge cases - yay, 10240 got 10 bits and 10250 got 11 bits.
-//but maybe 1023 should get 10, 1024 11 - try x+1 where x was
-//no, wait, (x/10)+1, not (x+1)/10
-//and now it is right.
-//...drat, these don't work in yosys
-
-
-//`define BITS_TO_HOLD_100MS(x) ($rtoi($ceil($clog2(($itor(x)/$itor(10))+1) )))
-//`define G_STATE_TIMER_BITS (`BITS_TO_HOLD_100MS(`G_SYSFREQ))
-//ok, needed integer arg to clog2
-`define G_STATE_TIMER_BITS ($ceil($clog2( $rtoi($itor(`G_SYSFREQ)/$itor(10)) +1) ))
-*/
-
 //new way with include
 
 `ifndef SIM_STEP
-`include hd44780_build_config.inc
+`include "./hd44780_build_config.inc"
 `else
-`include hd44780_sim_config.inc
+`include "./hd44780_sim_config.inc"
 `endif
+
+//e.g.
+// "long" delays needed for LCD initialization, in clock ticks
+// `define H4_SYSFREQ       (48000000)
+// `define H4_DELAY_53US    (2544)
+// `define H4_DELAY_100MS   (4800000)
+// `define H4_DELAY_4P1MS   (196800)
+// `define H4_DELAY_3MS     (144000)
+// `define H4_DELAY_100US   (4800)
+// `define H4_TIMER_BITS    (23)
+//
+// //short delays for hd44780 nybble sender, in clock ticks
+// `define H4NS_TICKS_TAS   (3)
+// `define H4NS_TICKS_TCYCE (48)
+// `define H4NS_TICKS_PWEH  (22)
+// `define H4NS_COUNT_BITS  (6)
+
 
 //*************************************************************************************
 //aha, it's the backtick before referring to a define that makes them work like numbers
 //*************************************************************************************
 
-module hd44780_state_timer  #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TIMER_BITS = `G_STATE_TIMER_BITS)
+module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_TIMER_BITS = `H4_TIMER_BITS)
 (
     input wire RST_I,
     input wire CLK_I,
@@ -84,39 +50,60 @@ module hd44780_state_timer  #(parameter SYSFREQ = `G_SYSFREQ, parameter STATE_TI
     //yosys doesn't like these defines so only do them in iverilog
     `ifdef SIM_STEP
     initial begin
-        localparam d100ms = `DELAY_100MS;
-        $display("DELAY_100MS is %d",d100ms);       //this didn't work either
-        $display("DELAY_4P1MS is %d",`DELAY_4P1MS);
-        $display("DELAY_3MS is %d",`DELAY_3MS);
-        $display("DELAY_100US is %d",`DELAY_100US);
-        $display("DELAY_53US is %d",`DELAY_53US);
-        $display("G_STATE_TIMER_BITS is %d",`G_STATE_TIMER_BITS);
+        $display("H4_DELAY_100MS is %d",`H4_DELAY_100MS);
+        $display("H4_DELAY_4P1MS is %d",`H4_DELAY_4P1MS);
+        $display("H4_DELAY_3MS is %d",`H4_DELAY_3MS);
+        $display("H4_DELAY_100US is %d",`H4_DELAY_100US);
+        $display("H4_DELAY_53US is %d",`H4_DELAY_53US);
+        $display("H4_TIMER_BITS is %d",`H4_TIMER_BITS);
     end
     `endif
     // END DEBUG ===========================================================================
 
-    //drat, yosys hates all my clever bit calculations
-    //*********************** FIGURE OUT HOW TO DEAL WITH THAT
-    reg [`G_STATE_TIMER_BITS-1:0] st_count = 0;
+    reg [`H4_TIMER_BITS-1:0] st_count = 0;
     reg end_strobe_reg = 0;
+    reg dat_was_0 = 0;      //silly thing to keep the output strobe only last for 1 cycle
+    reg strobe_dropped = 0; //this is a way to not start counting down until an additional tick after strobe drops.
+                            //trying to make it so count of ticks is n *after strobe drops*, currently it's n-1 after drop
+
 
 	always @(posedge CLK_I) begin
 		if(RST_I == 1) begin
 			st_count <= 0;
 			end_strobe_reg <= 0;
-		end else if(start_strobe == 1) begin
-			end_strobe_reg <= 0;
-			st_count <= DAT_I;
-		end else if(|st_count) begin
-			//count is not 0 - raise strobe in the last tick before it goes 0
-			if(st_count == 1) begin
-				end_strobe_reg <= 1;
-			end
-			st_count <= st_count-1;
+            strobe_dropped <= 0;
 		end else begin
-			//counter is 0
-			end_strobe_reg <= 0;
-		end
+            if(start_strobe) begin
+                st_count <= DAT_I;
+    			end_strobe_reg <= 0;
+                if(DAT_I) begin
+                    strobe_dropped <= 0;
+                end else begin
+                    dat_was_0 <= 1;         //this
+                    strobe_dropped <= 1;    //mechanism for sending a end strobe if we get a 0 in, which we shouldn't
+                end
+            end else if(|st_count) begin
+                if(~strobe_dropped) begin
+                    strobe_dropped <= 1;         //dumb wait state mechanism, makes it so we get DAT_I ticks after strobe drops
+        		end else begin
+        			//count is not 0 - raise strobe in the last tick before it goes 0
+                    //do I need to do this? Yes.
+        			if(st_count == 1) begin
+        				end_strobe_reg <= 1;
+        			end
+        			st_count <= st_count-1;
+                end
+		    end else begin
+    			//counter is 0
+                if(dat_was_0 & strobe_dropped) begin
+                    dat_was_0 <= 0;
+                    end_strobe_reg = 1;         //the end strobe for a 0 loaded
+                end else begin
+                    end_strobe_reg <= 0;
+                end
+                strobe_dropped <= 0;
+	        end
+        end
 	end
 
     // hey why not just do
@@ -140,7 +127,7 @@ module hd44780_nybble_sender(
     output wire o_e                 //LCD enable pin
     );
 
-    reg[`NSEND_TIMER_BITS-1:0] STDC = 0;
+    reg[`H4NS_COUNT_BITS-1:0] STDC = 0;
     reg e_reg = 0;
     reg busy_reg = 0;
 
@@ -153,7 +140,7 @@ module hd44780_nybble_sender(
         end else if (STB_I & ~busy_reg) begin
             //strobe came along while we're not busy! let's get rolling
             e_reg <= 0;
-            STDC <= `TCYCE_TICKS + `TAS_TICKS;      //this should be how long the counter runs
+            STDC <= `H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
             busy_reg <= 1;
         end else if (|STDC) begin
             STDC <= STDC - 1;           //decrement unless STDC is 0
@@ -201,9 +188,9 @@ module hd44780_nybble_sender(
             // STDC <= STDC-1;
             // assign o_lcd_data = i_nybble; //asyncy, but does it matter?
             // assign o_rs = i_rs; // similar, none of this matters until e
-            if(STDC == `TCYCE_TICKS) begin      //i.e., TAS_TICKS after start
+            if(STDC == `H4NS_TICKS_TCYCE) begin      //i.e., TAS_TICKS after start
                 e_reg <= 1;          //raise e
-            end else if(STDC == `TCYCE_TICKS - `PWEH_TICKS) begin      //i.e., PWEH_TICKS after raise e
+            end else if(STDC == `H4NS_TICKS_TCYCE - `H4NS_TICKS_PWEH) begin      //i.e., PWEH_TICKS after raise e
                 e_reg <= 0;          //lower e
             end
         end else begin
@@ -221,10 +208,10 @@ endmodule
 
 // MAIN ********************************************************************************************************************************************
 module hd44780_controller(
-    input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
-    input CLK_I,
-    input STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
-    input i_rs,                     //register select - command or data, will go to LCD RS pin
+    input wire RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+    input wire CLK_I,
+    input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
+    input wire i_rs,                     //register select - command or data, will go to LCD RS pin
     input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
     output wire busy,
 	output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
@@ -242,7 +229,7 @@ module hd44780_controller(
 											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
 											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
 	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
-	always @(posedge i_clk) begin
+	always @(posedge CLK_I) begin
 		greenblinkct <= greenblinkct + 1;
 	end
 
@@ -253,7 +240,7 @@ module hd44780_controller(
 
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
 	//annoying that parameterizing needs a separate calculation on bits to hold tenth, but we'll figure it out
-	reg[`G_STATE_TIMER_BITS-1:0] timer_value = 0;
+	reg[`H4_TIMER_BITS-1:0] timer_value = 0;
 	reg timer_start = 0;
 	wire timer_done;
 
@@ -261,8 +248,8 @@ module hd44780_controller(
 	//hd44780_state_timer #(.SYSFREQ(slow_freq)) timey 			//should figure out bits by itself - but this is gross, need to do the bits calc here and in the module :P but ok
 	hd44780_state_timer timey
 	(
-		.RST_I(RST_O),
-		.CLK_I(CLK_O),
+		.RST_I(RST_I),
+		.CLK_I(CLK_I),
 		.DAT_I(timer_value),			//can I use regs here?
 		.start_strobe(timer_start),		//and here?
 		.end_strobe(timer_done)

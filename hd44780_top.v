@@ -13,7 +13,6 @@ module hd44780_top(
     output wire alive_led,              //alive-blinky, use rgb green ... from controller
     output wire led_b,                  //blue led bc rgb driver needs it
     output wire led_r                   //red led
-    end
     );
 
     //and then the clock, up5k style
@@ -36,7 +35,7 @@ module hd44780_top(
       .RGBLEDEN (1'b1),         // enable LED
       .RGB0PWM  (led_g_reg),    //these appear to be single-bit parameters. ordering determined by experimentation and may be wrong
       .RGB1PWM  (led_b_reg),    //driven from registers within counter arrays in every example I've seen
-      .RGB2PWM  (ledX_r_reg),    //so I will do similar
+      .RGB2PWM  (led_r_reg),    //so I will do similar
       .CURREN   (1'b1),         // supply current; 0 shuts off the driver (verify)
       .RGB0     (alive_led),    //Actual Hardware connection - output wires. looks like it goes 0=green
       .RGB1     (led_b),        //1 = blue
@@ -71,7 +70,7 @@ module hd44780_top(
         );
 
     hd44780_controller controller(
-
+            //GOING TO GO WRITE THIS IN TB AND BRING IT BACK HERE 
         );
 
 endmodule

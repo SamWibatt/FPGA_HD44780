@@ -1,4 +1,5 @@
 read_verilog hd44780_controller.v
+read_verilog hd44780_syscon.v
 read_verilog hd44780_top.v
 synth_ice40 -top hd44780_top
 write_json hd44780.json

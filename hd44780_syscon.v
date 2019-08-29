@@ -4,7 +4,7 @@ module hd44780_syscon(
     input i_clk,
     output RST_O,
     output CLK_O
-)
+);
 
 // SYSCON ============================================================================================================================
 // Wishbone-like syscon responsible for clock and reset.
