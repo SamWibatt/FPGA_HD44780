@@ -18,6 +18,16 @@ import sys
 def ticks_per_ns(x,freq):
     return math.ceil((float(x)/1000000000.0) / (1.0/freq))
 
+# given an int like 1000, turns into verilog underscored style for readability like 1_000
+def make_verilog_number_str(x):
+    num = int(x)
+    if num < 1000:
+        return str(x)
+    else
+        # ok here figure out how to stick a _ in all the right spots.
+        # I think we could iterate by thousands -
+        WRITE THIS 
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("usage: hd44780_config.py (sysclock Hz) > (includefile).v")

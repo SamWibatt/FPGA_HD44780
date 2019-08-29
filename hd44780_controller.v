@@ -65,6 +65,9 @@ module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_T
     reg dat_was_0 = 0;      //silly thing to keep the output strobe only last for 1 cycle
     reg strobe_dropped = 0; //this is a way to not start counting down until an additional tick after strobe drops.
                             //trying to make it so count of ticks is n *after strobe drops*, currently it's n-1 after drop
+                            //ok now it works better
+
+    //would it be better to redo this as a state machine?
 
 
 	always @(posedge CLK_I) begin
