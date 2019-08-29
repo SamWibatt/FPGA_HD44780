@@ -45,21 +45,6 @@ module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_T
     output wire end_strobe             // nudges caller to advance state
     );
 
-    // DEBUG ===============================================================================
-    // can I print out defines like this? yarp! Shouldn't synthesize anything
-    //yosys doesn't like these defines so only do them in iverilog
-    `ifdef SIM_STEP
-    initial begin
-        $display("H4_DELAY_100MS is %d",`H4_DELAY_100MS);
-        $display("H4_DELAY_4P1MS is %d",`H4_DELAY_4P1MS);
-        $display("H4_DELAY_3MS is %d",`H4_DELAY_3MS);
-        $display("H4_DELAY_100US is %d",`H4_DELAY_100US);
-        $display("H4_DELAY_53US is %d",`H4_DELAY_53US);
-        $display("H4_TIMER_BITS is %d",`H4_TIMER_BITS);
-    end
-    `endif
-    // END DEBUG ===========================================================================
-
     reg [`H4_TIMER_BITS-1:0] st_count = 0;
     reg end_strobe_reg = 0;
     reg dat_was_0 = 0;      //silly thing to keep the output strobe only last for 1 cycle
@@ -130,6 +115,9 @@ module hd44780_nybble_sender(
     output wire o_e                 //LCD enable pin
     );
 
+
+
+	
     reg[`H4NS_COUNT_BITS-1:0] STDC = 0;
     reg e_reg = 0;
     reg busy_reg = 0;
@@ -243,6 +231,27 @@ module hd44780_controller(
 
     //moving syscon stuff to top....??? tb will need it too
 
+    // DEBUG ===============================================================================
+    // can I print out defines like this? yarp! Shouldn't synthesize anything
+    //yosys doesn't like these defines so only do them in iverilog
+    `ifdef SIM_STEP
+    initial begin
+        $display("H4_DELAY_100MS is %d",`H4_DELAY_100MS);
+        $display("H4_DELAY_4P1MS is %d",`H4_DELAY_4P1MS);
+		$display("H4_DELAY_3MS is   %d",`H4_DELAY_3MS);
+        $display("H4_DELAY_100US is %d",`H4_DELAY_100US);
+		$display("H4_DELAY_53US is  %d",`H4_DELAY_53US);
+		$display("H4_TIMER_BITS is  %d",`H4_TIMER_BITS);
+		$display("---");
+		$display("H4NS_TICKS_TAS is   %d",`H4NS_TICKS_TAS);
+		$display("H4NS_TICKS_TCYCE is %d",`H4NS_TICKS_TCYCE);
+		$display("H4NS_TICKS_PWEH is  %d",`H4NS_TICKS_PWEH);
+		$display("H4NS_COUNT_BITS is  %d",`H4NS_COUNT_BITS);
+	end
+    `endif
+    // END DEBUG ===========================================================================
+
+	
 
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
 	//annoying that parameterizing needs a separate calculation on bits to hold tenth, but we'll figure it out

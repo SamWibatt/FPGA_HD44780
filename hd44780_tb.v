@@ -83,6 +83,7 @@ module hd44780_tb;
     //
     //     );
 
+    /* HERE IS THE TESTBENCH FOR THE STATE TIMER */
     // ------------------------8<--------------------------------8<-----------------------------------
     // module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_TIMER_BITS = `H4_TIMER_BITS)
     // (
@@ -99,7 +100,7 @@ module hd44780_tb;
     wire endstrobe;
     hd44780_state_timer stimey(
         .RST_I(wb_reset),
-        .CLK_I(clk),
+        .CLK_I(wb_clk),
         .DAT_I(time_len),
         .start_strobe(ststrobe), //(ststrobe_wire),       //this was ststrobe, and we weren't seeing the strobe in controller
         .end_strobe(endstrobe)
@@ -145,7 +146,39 @@ module hd44780_tb;
         #1000 $finish;
     end
     // ------------------------8<--------------------------------8<-----------------------------------
+    /* END HERE IS THE TB FOR STATE TIMER */
+    
+    /* TB FOR NYBBLE SENDER
+    //now here is a tb for a nybble sender!
+    //module hd44780_nybble_sender(
+    //    input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+    //    input CLK_I,
+    //    input STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
+    //    input i_rs,                     //register select - command or data, will go to LCD RS pin
+    //    input wire[3:0] i_nybble,       //nybble we're sending
+    //    output wire o_busy,             //whether this module is busy
+    //    output wire [3:0] o_lcd_data,   //the data bits we send really are 7:4 - I guess others NC? tied low?
+    //    output wire o_rs,
+    //    output wire o_e                 //LCD enable pin
+    //    );
 
+    hd44780_nybble_sender nybsen(
+        .RST_I(wb_reset),
+        .CLK_I(),
+        .STB_I(),
+        .i_rs(),
+        .i_nybble(),
+        .o_busy(),
+        .o_lcd_data(),
+        .o_rs(),
+        .o_e() 
+    );
+    
+    initial begin
+        //set up and send some stuff, osberve behavior of nybble sender
+        
+    end
+    END TB FOR NYBBLE SENDER */
 
 endmodule
 
