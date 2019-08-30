@@ -2,8 +2,17 @@
 //so let's start by copying top
 `default_nettype	none
 
-//?
-`timescale 100ns/100ns
+//Timescale seems to be pretty useless on its own for emulating a real system tick, since it SHRIEKS if I try
+//to start either of the values with a digit other than "1" and sometimes you want an 83.333 ns tick.
+//and the documentation around it is infinity repostings of the same missing-the-point advice,
+//like misheard and typo-riddled song lyrics potatostamped all over the web by unthinking spiders.
+//so, you could set the fractional part to 1ps and do delays like #83.333
+//...which would likely generate a hojillion-byte vcd before its conversion to fst.
+//...which are wrong for any other clock speed.
+//so let's just use a value that's easy to count.
+//One problem is that the "clock", the way I simulate it, takes two simulation ticks for one clock tick.
+//what if... I use always #5 for the clock and make all the events a multiple of 10?
+`timescale 1ns/1ns
 
 
 // Main module -----------------------------------------------------------------------------------------
@@ -21,7 +30,10 @@ module hd44780_tb;
 
     //and then the clock, simulation style
     reg clk = 1;            //try this to see if it makes aligning clock delays below work right - they were off by half a cycle
-    always #1 clk = (clk === 1'b0);
+    //was always #1 clk = (clk === 1'b0);
+    //test: see if we can make easier-to-count values by having a system tick be 10 clk ticks
+    always #5 clk = (clk === 1'b0);
+
 
     wire led_b, led_r;
     //looks like the pwm parameters like registers - not quite sure how they work, but let's
@@ -117,6 +129,7 @@ module hd44780_tb;
         //***********************************************************************************************
         //OK, HERE IS A THING, if you raise a strobe on an odd # in this tb, and lower it in #1,
         //that's not enough of a signal to trigger a strobe! the clock is 2 tb-ticks wide, yes?
+        //THIS HAS NOT BEEN UPDATED FOR THE 5-tick clock, 10-tick sysclk version, if that ends up being useful
         //***********************************************************************************************
         //***********************************************************************************************
         //***********************************************************************************************
@@ -188,11 +201,20 @@ module hd44780_tb;
     
     initial begin
         //set up and send some stuff, osberve behavior of nybble sender
+        /* for the #1 clk, 2-tick system clock
         #18 nybbin = 4'b1011;           //pick a distinctive nybble
         rs_reg = 1;                       //and send rs high just 'cause
         #2 ststrobe = 1;
         #2 ststrobe = 0;
         #1000 $finish;
+        */
+        //#5 tick, 10 ticks/syclck, swh
+        #90 nybbin = 4'b1011;           //pick a distinctive nybble
+        rs_reg = 1;                       //and send rs high just 'cause
+        #10 ststrobe = 1;
+        #10 ststrobe = 0;
+        #2500 $finish;
+
     end
     // ------------------------8<--------------------------------8<-----------------------------------
     /* END TB FOR NYBBLE SENDER */
