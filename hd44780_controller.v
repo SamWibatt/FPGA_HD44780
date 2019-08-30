@@ -117,7 +117,7 @@ module hd44780_nybble_sender(
 
 
 
-	
+
     reg[`H4NS_COUNT_BITS-1:0] STDC = 0;
     reg e_reg = 0;
     reg busy_reg = 0;
@@ -131,7 +131,7 @@ module hd44780_nybble_sender(
         end else if (STB_I & ~busy_reg) begin
             //strobe came along while we're not busy! let's get rolling
             e_reg <= 0;
-            STDC <= `H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
+            STDC <= `H4NS_COUNT_TOP; //`H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
             busy_reg <= 1;
         end else if (|STDC) begin
             STDC <= STDC - 1;           //decrement unless STDC is 0
@@ -179,11 +179,29 @@ module hd44780_nybble_sender(
             // STDC <= STDC-1;
             // assign o_lcd_data = i_nybble; //asyncy, but does it matter?
             // assign o_rs = i_rs; // similar, none of this matters until e
+            /*
             if(STDC == `H4NS_TICKS_TCYCE) begin      //i.e., TAS_TICKS after start
                 e_reg <= 1;          //raise e
             end else if(STDC == `H4NS_TICKS_TCYCE - `H4NS_TICKS_PWEH) begin      //i.e., PWEH_TICKS after raise e
                 e_reg <= 0;          //lower e
             end
+            */
+            /* ok, that didn't quite work. Correct enough in theory but in practice, at very low clock speeds,
+            the fact that all the ns delays are 1 causes trouble.
+            //short delays for hd44780 nybble sender, in clock ticks (32768 Hz)
+            `define H4NS_TICKS_TAS   (1)
+            `define H4NS_TICKS_PWEH  (1)
+            `define H4NS_TICKS_TAH   (1)
+            `define H4NS_TICKS_E_PAD (1)
+            `define H4NS_COUNT_TOP   (4)
+            `define H4NS_COUNT_BITS  (3)
+            */
+            if(STDC == `H4NS_COUNT_TOP - `H4NS_TICKS_TAS) begin      //i.e., TAS_TICKS after start
+                e_reg <= 1;          //raise e
+            end else if(STDC == `H4NS_COUNT_TOP - `H4NS_TICKS_TAS - `H4NS_TICKS_PWEH) begin      //i.e., PWEH_TICKS after raise e
+                e_reg <= 0;          //lower e
+            end
+
         end else begin
             // counter is 0 - we're done! or continue not to be busy
             busy_reg <= 0;
@@ -244,14 +262,16 @@ module hd44780_controller(
 		$display("H4_TIMER_BITS is  %d",`H4_TIMER_BITS);
 		$display("---");
 		$display("H4NS_TICKS_TAS is   %d",`H4NS_TICKS_TAS);
-		$display("H4NS_TICKS_TCYCE is %d",`H4NS_TICKS_TCYCE);
 		$display("H4NS_TICKS_PWEH is  %d",`H4NS_TICKS_PWEH);
+        $display("H4NS_TICKS_TAH is   %d",`H4NS_TICKS_TAH);
+        $display("H4NS_TICKS_E_PAD is %d",`H4NS_TICKS_E_PAD);
+        $display("H4NS_COUNT_TOP is   %d",`H4NS_COUNT_TOP);
 		$display("H4NS_COUNT_BITS is  %d",`H4NS_COUNT_BITS);
 	end
     `endif
     // END DEBUG ===========================================================================
 
-	
+
 
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
 	//annoying that parameterizing needs a separate calculation on bits to hold tenth, but we'll figure it out
@@ -283,11 +303,11 @@ module hd44780_controller(
     //be nice for the presentation of a nybble on the output.
     //here's how UW https://courses.cs.washington.edu/courses/cse370 does it
     //localparam IDLE=0, WAITFORB=1, DONE=2, ERROR=3;
-	
+
     /* Here is the initialization sequence given in http://web.alfredstate.edu/faculty/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
     Copyright © 2009, 2010, 2012 Donald Weiman
     (weimandn@alfredstate.edu)
-	
+
 	*****************************************************************************************************************************************************************
 	*****************************************************************************************************************************************************************
 	*****************************************************************************************************************************************************************
@@ -296,7 +316,7 @@ module hd44780_controller(
 	*****************************************************************************************************************************************************************
 	*****************************************************************************************************************************************************************
 	IMPORTANT: TEST TO SEE WHAT HAPPENS IF WE'VE BEEN USING THE LCD FOR A WHILE AND THEN SEND A RESET. DOES IT WAKE BACK UP PROPERLY?
-	Per https://mil.ufl.edu/3744/docs/lcdmanual/commands.html#Fs, 
+	Per https://mil.ufl.edu/3744/docs/lcdmanual/commands.html#Fs,
 	"This command should be issued only after automatic power-on initialization has occurred, or as part of the module initialization sequence."
 	Let's see if we can't find something a little more definite
 	- datasheet says:
@@ -317,11 +337,11 @@ module hd44780_controller(
 	----- if doing the 8-bit then 4-bit:
 	Step -n: wait 100ms... do we need to, if we assume power is on? I guess if you have a single init for cold or warm, do this. Adds 1/10 sec to startup but wev
 
-	Step -n-1 .. 0: contains multitudes. Do we have to do 3 4-bit sends of 0011, like steps 2, 3, 4 below, THEN ANOTHER 0011 instead of steps 5 and 6? LCD pins tied low mean it 
+	Step -n-1 .. 0: contains multitudes. Do we have to do 3 4-bit sends of 0011, like steps 2, 3, 4 below, THEN ANOTHER 0011 instead of steps 5 and 6? LCD pins tied low mean it
 	will assume N and F are 0, so 1 line and 5x8 font, acceptable. Also prolly send a display off ... only if it's in 8-bit, I can't bc that needs bit 3 to be 1 and it's tied low
 
 	BUT FIRST DON'T WORRY RE THAT, get the power-on case working
-	
+
 	----- original
     Step 1. Power on, then delay > 100 ms
     There are two different values (with two different references) specified on the datasheet flowchart for this initial delay but neither
@@ -421,7 +441,7 @@ module hd44780_controller(
             //**************************************************************************************
             // SHOULD THERE BE A PIECE IN HERE ABOUT HOW IF WE ARE NEWLY RESET, SHUT THE LCD OFF?
             // i.e. if active == 1, ... hm.
-			// 
+			//
             //**************************************************************************************
             //**************************************************************************************
             //**************************************************************************************
@@ -450,10 +470,10 @@ module hd44780_controller(
 					//8-bit-then-4-bit may be a way around the don't-do-function-set-after-init thing from the datasheet
 				end else begin
 					//do power-on reset
-					
+
 					//and after that, mark that the power-on reset has been done.
 					already_did_reset <= 1;
-					
+
 				end
             end else if (STB_I & ~busy) begin
                 //Strobe doesn't do anything if we're already busy

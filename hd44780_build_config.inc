@@ -15,6 +15,8 @@
 
 //short delays for hd44780 nybble sender, in clock ticks
 `define H4NS_TICKS_TAS   (3)
-`define H4NS_TICKS_TCYCE (48)
 `define H4NS_TICKS_PWEH  (22)
+`define H4NS_TICKS_TAH   (1)
+`define H4NS_TICKS_E_PAD (26)
+`define H4NS_COUNT_TOP   (52)
 `define H4NS_COUNT_BITS  (6)

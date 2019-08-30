@@ -82,10 +82,16 @@ if __name__ == "__main__":
     ticks_tas = ticks_per_ns(60,g_sysfreq)
 
     #`define TCYCE_TICKS `TICKS_PER_NS(1000)
-    ticks_tcyce = ticks_per_ns(1000,g_sysfreq)
+    #ticks_tcyce = ticks_per_ns(1000,g_sysfreq)
 
     #`define PWEH_TICKS `TICKS_PER_NS(450)
     ticks_pweh = ticks_per_ns(450,g_sysfreq)
+
+    # and let's also account for tah (address hold time)
+    ticks_tah = ticks_per_ns(20,g_sysfreq)
+
+    # then the rest of TcycE - 1000 - (450+20) ns, yes? bc tas is before tcyce is counted.
+    ticks_e_pad = ticks_per_ns((1000-(450+20)),g_sysfreq)
 
     # then the # of bits for the nybble sender's downcounter.
     # the duration it has to downcount is the E cycle length ticks_tcyce plus the
@@ -93,7 +99,16 @@ if __name__ == "__main__":
     #`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
     # fails in the case of tcyce and tas < 1 bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce + ticks_tas)))
     # in fact should probably add up tas, pweh, tah (?)
-    bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce) + int(ticks_tas)))
+    #bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce) + int(ticks_tas)))
+    # so the idea here is that at low clock speeds, these tick counts all get distorted
+    # so that tcyce, pweh, tah, etc. are all 1 tick. Which is correct, but then you have to account for
+    # them all, still, and not just let the tcyce+tas = 2 be the whole duration.
+    # so, add up tas, then the ecycle parts: pweh, tah, and the rest of tcyce, which I call e_pad.
+    count_top = int(ticks_tas) + int(ticks_pweh) + int(ticks_tah) + int(ticks_e_pad)
+    # I believe we need to fudge count_top up by one in bit container like we did with bit length for timer
+    # i.e. the number 4 needs 3 bits to hold though its log2 is 2.
+    bits_to_hold_nsend = math.ceil(math.log2(count_top+1))
+
 
 
     # output! We need everything to be integers.
@@ -112,6 +127,8 @@ if __name__ == "__main__":
     print("`define H4_TIMER_BITS    ({})".format(make_verilog_number_str(int(bits_to_hold_100ms))))
     print("\n//short delays for hd44780 nybble sender, in clock ticks")
     print("`define H4NS_TICKS_TAS   ({})".format(make_verilog_number_str(int(ticks_tas))))
-    print("`define H4NS_TICKS_TCYCE ({})".format(make_verilog_number_str(int(ticks_tcyce))))
     print("`define H4NS_TICKS_PWEH  ({})".format(make_verilog_number_str(int(ticks_pweh))))
+    print("`define H4NS_TICKS_TAH   ({})".format(make_verilog_number_str(int(ticks_tah))))
+    print("`define H4NS_TICKS_E_PAD ({})".format(make_verilog_number_str(int(ticks_e_pad))))
+    print("`define H4NS_COUNT_TOP   ({})".format(make_verilog_number_str(int(count_top))))
     print("`define H4NS_COUNT_BITS  ({})".format(make_verilog_number_str(int(bits_to_hold_nsend))))
