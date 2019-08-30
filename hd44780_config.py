@@ -92,6 +92,7 @@ if __name__ == "__main__":
     # address setup time, ticks_tas.
     #`define NSEND_TIMER_BITS ($ceil($clog2($itor(`TCYCE_TICKS)+$itor(`TAS_TICKS))))
     # fails in the case of tcyce and tas < 1 bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce + ticks_tas)))
+    # in fact should probably add up tas, pweh, tah (?)
     bits_to_hold_nsend = math.ceil(math.log2(int(ticks_tcyce) + int(ticks_tas)))
 
 
