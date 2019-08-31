@@ -133,7 +133,8 @@ module hd44780_nybble_sender(
             e_reg <= 0;
             STDC <= `H4NS_COUNT_TOP; //`H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
             busy_reg <= 1;
-        end else if (|STDC) begin
+        //was end else if (|STDC) begin
+        end else if (~STB_I & |STDC) begin
             STDC <= STDC - 1;           //decrement unless STDC is 0
 
             // our little state machine! All of the following with the appropriate delays
@@ -202,7 +203,8 @@ module hd44780_nybble_sender(
                 e_reg <= 0;          //lower e
             end
 
-        end else begin
+        //was end else begin
+        end else if(~STB_I) begin
             // counter is 0 - we're done! or continue not to be busy
             busy_reg <= 0;
         end
