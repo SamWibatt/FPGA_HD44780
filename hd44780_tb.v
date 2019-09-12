@@ -115,13 +115,49 @@ module hd44780_tb;
     end
 
     initial begin
+        //TIMINGS HERE ASSUME 12 MHZ. i.e. hd44780_sim_config.inc should look like:
+        /*
+          //automatically generated .inc file for FPGA_HD44780
+          //Created by hd44780_config.py 12000000
+
+          //system frequency 12000000.0Hz
+          //1 system clock tick = 83.33333333333333 nanoseconds
+
+          //"long" delays needed for LCD initialization, in clock ticks
+          `define H4_SYSFREQ       (12_000_000)
+          `define H4_DELAY_53US    (636)
+          `define H4_DELAY_100MS   (1_200_000)
+          `define H4_DELAY_4P1MS   (49_200)
+          `define H4_DELAY_3MS     (36_000)
+          `define H4_DELAY_100US   (1_200)
+          `define H4_TIMER_BITS    (21)
+
+          //short delays for hd44780 nybble sender, in clock ticks
+          `define H4NS_TICKS_TAS   (1)
+          `define H4NS_TICKS_PWEH  (6)
+          `define H4NS_TICKS_TAH   (1)
+          `define H4NS_TICKS_E_PAD (7)
+          `define H4NS_COUNT_TOP   (15)
+          `define H4NS_COUNT_BITS  (4)
+        */
         //#5 tick, 10 ticks/syclck
         #90 lcd_byte = 8'b0110_1101;            //distinctive nybbles
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 
-        //if we do another one right away, the controller
+        //if we do another one right away, the controller should ignore it bc busy. Caller's responsibility to see to that
         #30 lcd_byte = 8'b1000_1110;            //distinctive nybbles
+        #10 cont_ststart = 1;                   //strobe lcd controller
+        #10 cont_ststart = 0;
+
+        //another one after the controller itself is not busy but its nybble sender still is should also ignore
+        //hm
+        #200 lcd_byte = 8'b0101_1010;
+        #10 cont_ststart = 1;                   //strobe lcd controller
+        #10 cont_ststart = 0;
+
+        //then this one SHOULD send a byte.
+        #110 lcd_byte = 8'b1100_1011;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 

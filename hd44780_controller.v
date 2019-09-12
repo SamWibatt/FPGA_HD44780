@@ -332,6 +332,7 @@ module hd44780_controller(
 
     reg [2:0] cont_state = 0;
     reg cont_busy_reg = 0;
+    reg [7:0] i_lcd_data_shadow = 0;    // save off a copy of i_lcd data so spurious changes on the input lines don't trash nybbles
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
@@ -340,8 +341,8 @@ module hd44780_controller(
             ns_nybbin <= 0;
             cont_state <= 0;
             cont_busy_reg <= 0;
-        end else if (STB_I & ~cont_busy_reg) begin
-            //strobe came along while we're not busy! let's get rolling
+        end else if (STB_I & ~cont_busy_reg & ~ns_busy) begin
+            //strobe came along while we're not busy and nybble sender isn't either! let's get rolling
             cont_busy_reg <= 1;
             cont_state <= 3'b001; //bump out of idle
         end else begin
@@ -358,6 +359,7 @@ module hd44780_controller(
                 3'b001: begin
                     //wait for strobe to drop
                     if(~STB_I) begin
+                        i_lcd_data_shadow <= i_lcd_data;    //save off input byte so changes on the input lines don't mess up nybbles asynchronously
                         cont_state <= cont_state + 1;
                     end
                 end
@@ -365,7 +367,7 @@ module hd44780_controller(
                 //state 1, cue up first nybble
                 3'b010: begin
                     //do we send lower nybble first? if so, do this, otherwise swap with the other one
-                    ns_nybbin <= {i_lcd_data[3],i_lcd_data[2],i_lcd_data[1],i_lcd_data[0]};
+                    ns_nybbin <= {i_lcd_data_shadow[3],i_lcd_data_shadow[2],i_lcd_data_shadow[1],i_lcd_data_shadow[0]};
                     cont_state <= cont_state + 1;
                 end
 
@@ -386,7 +388,7 @@ module hd44780_controller(
                     if(~ns_busy) begin
                         cont_state <= cont_state +1;
                         //do we send upper nybble last? if so, do this, otherwise swap with the other one
-                        ns_nybbin <= {i_lcd_data[7],i_lcd_data[6],i_lcd_data[5],i_lcd_data[4]};
+                        ns_nybbin <= {i_lcd_data_shadow[7],i_lcd_data_shadow[6],i_lcd_data_shadow[5],i_lcd_data_shadow[4]};
                     end
                 end
 
