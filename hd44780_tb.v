@@ -142,22 +142,26 @@ module hd44780_tb;
         */
         //#5 tick, 10 ticks/syclck
         #90 lcd_byte = 8'b0110_1101;            //distinctive nybbles
+        lcd_rs = 1;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 
         //if we do another one right away, the controller should ignore it bc busy. Caller's responsibility to see to that
         #30 lcd_byte = 8'b1000_1110;            //distinctive nybbles
+        lcd_rs = 0;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 
         //another one after the controller itself is not busy but its nybble sender still is should also ignore
         //hm
         #200 lcd_byte = 8'b0101_1010;
+        lcd_rs = 0;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 
         //then this one SHOULD send a byte.
         #110 lcd_byte = 8'b1100_1011;
+        lcd_rs = 1;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 

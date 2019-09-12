@@ -116,13 +116,12 @@ module hd44780_nybble_sender(
     output wire o_e                 //LCD enable pin
     );
 
-
-
-
     reg[`H4NS_COUNT_BITS-1:0] STDC = 0;
     reg e_reg = 0;
     reg busy_reg = 0;
     reg[3:0] o_lcd_reg = 0;
+
+    reg rs_reg = 0;           //for saving off the rs so that async changes to input don't get propagated
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
@@ -131,10 +130,12 @@ module hd44780_nybble_sender(
             STDC <= 0;
             o_lcd_reg <= 0;
             busy_reg <= 0;
+            rs_reg <= 0;
         end else if (STB_I & ~busy_reg) begin
             //strobe came along while we're not busy! let's get rolling
             e_reg <= 0;
             o_lcd_reg <= i_nybble;      //sync way
+            rs_reg <= i_rs;              //sync rs too
             STDC <= `H4NS_COUNT_TOP; //`H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
             busy_reg <= 1;
         //was end else if (|STDC) begin
@@ -217,10 +218,9 @@ module hd44780_nybble_sender(
 
     end
 
-    //THIS PART STILL DOESN'T SEEM TO WORK
     assign o_lcd_data = o_lcd_reg;
     //was i_nybble; //asyncy, but does it matter? probably. controller tb hates it.
-    assign o_rs = i_rs; // similar, none of this matters until e
+    assign o_rs = rs_reg; //i_rs; // similar, none of this matters until e - no, had to make it synch to avoid spurious input->output changes
     assign o_e = e_reg;
     assign o_busy = busy_reg;
 
