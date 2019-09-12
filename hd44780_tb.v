@@ -155,13 +155,13 @@ module hd44780_tb;
         //another one after the controller itself is not busy but its nybble sender still is should also ignore
         //hm
         #200 lcd_byte = 8'b0101_1010;
-        lcd_rs = 0;
+        lcd_rs = 1;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 
         //then this one SHOULD send a byte.
         #110 lcd_byte = 8'b1100_1011;
-        lcd_rs = 1;
+        lcd_rs = 0;
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
 

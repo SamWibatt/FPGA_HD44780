@@ -298,13 +298,13 @@ module hd44780_controller(
     reg ns_ststrobe = 0;                       //start strobe for nybble sender
     wire ns_busy;                           //nybble sender's busy, which is not the same as controller's
     reg [3:0] ns_nybbin = 4'b0000;          //nybble we wish to send
-
+	reg cont_rs_reg = 0;
 
     hd44780_nybble_sender nybsen(
         .RST_I(RST_I),
         .CLK_I(CLK_I),
         .STB_I(ns_ststrobe),
-        .i_rs(i_rs),
+		.i_rs(cont_rs_reg),		//was (i_rs), but that passes through async changes in rs line which is bad
         .i_nybble(ns_nybbin),
         .o_busy(ns_busy),
         .o_lcd_data(o_lcd_data),
@@ -341,9 +341,11 @@ module hd44780_controller(
             ns_nybbin <= 0;
             cont_state <= 0;
             cont_busy_reg <= 0;
-        end else if (STB_I & ~cont_busy_reg & ~ns_busy) begin
+			cont_rs_reg <= 0;
+		end else if (STB_I & ~busy)	begin	//Can I do this? was & ~cont_busy_reg & ~ns_busy) begin			//busy output is cont busy reg | ns_busy... this is clumsy
             //strobe came along while we're not busy and nybble sender isn't either! let's get rolling
             cont_busy_reg <= 1;
+			cont_rs_reg <= i_rs;		//synchronize RS line
             cont_state <= 3'b001; //bump out of idle
         end else begin
             // load nybble, pulse strobe, wait for not busy (and can load next nybble in the meantime!)
@@ -407,7 +409,7 @@ module hd44780_controller(
         end
     end
 
-    assign busy = cont_busy_reg;
+	assign busy = cont_busy_reg | ns_busy;		//adding ns_busy bc controller is busy if ns is.
 
     /*
     //moving syscon stuff to top....??? tb will need it too
