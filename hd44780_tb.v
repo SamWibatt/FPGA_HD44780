@@ -119,6 +119,12 @@ module hd44780_tb;
         #90 lcd_byte = 8'b0110_1101;            //distinctive nybbles
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
+
+        //if we do another one right away, the controller
+        #30 lcd_byte = 8'b1000_1110;            //distinctive nybbles
+        #10 cont_ststart = 1;                   //strobe lcd controller
+        #10 cont_ststart = 0;
+
         #2500 $finish;
 
         //************************ THIS IS FROM NYBBLE SENDER DEMO
