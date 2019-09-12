@@ -111,6 +111,7 @@ module hd44780_nybble_sender(
     input wire[3:0] i_nybble,       //nybble we're sending
     output wire o_busy,             //whether this module is busy
     output wire [3:0] o_lcd_data,   //the data bits we send really are 7:4 - I guess others NC? tied low?
+                                    //check vpok. also I saw a way to do 7:4 -> 3:0 but - well, later
     output wire o_rs,
     output wire o_e                 //LCD enable pin
     );
@@ -121,16 +122,19 @@ module hd44780_nybble_sender(
     reg[`H4NS_COUNT_BITS-1:0] STDC = 0;
     reg e_reg = 0;
     reg busy_reg = 0;
+    reg[3:0] o_lcd_reg = 0;
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
             //reset!
             e_reg <= 0;
             STDC <= 0;
+            o_lcd_reg <= 0;
             busy_reg <= 0;
         end else if (STB_I & ~busy_reg) begin
             //strobe came along while we're not busy! let's get rolling
             e_reg <= 0;
+            o_lcd_reg <= i_nybble;      //sync way
             STDC <= `H4NS_COUNT_TOP; //`H4NS_TICKS_TCYCE + `H4NS_TICKS_TAS;      //this should be how long the counter runs
             busy_reg <= 1;
         //was end else if (|STDC) begin
@@ -208,9 +212,14 @@ module hd44780_nybble_sender(
             // counter is 0 - we're done! or continue not to be busy
             busy_reg <= 0;
         end
+        // ELSE COUNTER IS 0 AND STROBE IS OFF, and we care bc if we don't pay attention to strobe
+        // and it persists for a long time, busy wiggles back and forth bc of previous block
+
     end
 
-    assign o_lcd_data = i_nybble; //asyncy, but does it matter?
+    //THIS PART STILL DOESN'T SEEM TO WORK
+    assign o_lcd_data = o_lcd_reg;
+    //was i_nybble; //asyncy, but does it matter? probably. controller tb hates it.
     assign o_rs = i_rs; // similar, none of this matters until e
     assign o_e = e_reg;
     assign o_busy = busy_reg;
@@ -223,20 +232,15 @@ module hd44780_controller(
     input wire CLK_I,
     input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
     input wire i_rs,                     //register select - command or data, will go to LCD RS pin
+    //input wire[7:0] i_lcd_addr    //is there an address we have to send? looks like not, it's cursor-based.
     input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
     output wire busy,
 	output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
     output wire o_rs,
     output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+                                    //see above in nybble sender
     output wire o_e                 //LCD enable pin
 );
-
-    reg busy_reg = 0;               //for synching busy flag
-    reg active = 0;                 //0 means in reset so post-reset can spot
-    reg [3:0] nybble = 0;           //nybble to send to LCD
-	reg already_did_reset = 0;		//if 1, means that the LCD has gone through the power-on reset and should get a different "warm boot" reset,
-									//assuming that it's already in nybble mode. If the caller has put it into some crazy state, feh. Will try to protect against.
-									//SO THIS IS OUTSIDE THE INFLUENCE OF RST_I. it's the LCD's initialized bit, not the controller's... this is probably awful style but ???
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
 	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
@@ -249,7 +253,6 @@ module hd44780_controller(
 
 	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
-    //moving syscon stuff to top....??? tb will need it too
 
     // DEBUG ===============================================================================
     // can I print out defines like this? yarp! Shouldn't synthesize anything
@@ -273,8 +276,148 @@ module hd44780_controller(
     `endif
     // END DEBUG ===========================================================================
 
+    /*
+    **************************************************************************************
+    **************************************************************************************
+    **************************************************************************************
+    so ok now for what it really does
+    Version 1, and possibly all, with a different module that does initialization seq,
+    or something
+    ANYWAY what it does is cue up one nybble of i_lcd_data, then call the nybble sender,
+    then cue up the other one, and send that.
+    that is what the first testbench should do.
+
+    **************************************************************************************
+    **************************************************************************************
+    **************************************************************************************
+    */
+
+    //so, need a var for the outgoing strobe to the nybble sender.
+    //the STB_I one is the strobe for the controller itself, which triggers two nybble sends.
+    //but first, just put in a nybble sender.
+    reg ns_ststrobe = 0;                       //start strobe for nybble sender
+    wire ns_busy;                           //nybble sender's busy, which is not the same as controller's
+    reg [3:0] ns_nybbin = 4'b0000;          //nybble we wish to send
 
 
+    hd44780_nybble_sender nybsen(
+        .RST_I(RST_I),
+        .CLK_I(CLK_I),
+        .STB_I(ns_ststrobe),
+        .i_rs(i_rs),
+        .i_nybble(ns_nybbin),
+        .o_busy(ns_busy),
+        .o_lcd_data(o_lcd_data),
+        .o_rs(o_rs),
+        .o_e(o_e)
+    );
+
+    //so little state machine
+    //************************************************************************************************************
+    //************************************************************************************************************
+    //************************************************************************************************************
+    // FIGURE THIS OUT
+    // state succession is pretty easy, bc nybble sender does its own e-cycle timing, and you just
+    // wait for not busy first!
+    // load nybble, pulse strobe, wait for not busy (and can load next nybble in the meantime!)
+    // pulse strobe and wait done.
+    // note that the thing is still running, but since we wait for not busy at first, this
+    // lets us zoom off and do other stuff and if there are further bytes to send, no problem.
+    // if not, or if like in initialization we're doing pauses in between, it'll just be immediately not-busy
+    // by the time the second invocation happens.
+    // WRITE IT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //************************************************************************************************************
+    //************************************************************************************************************
+    //************************************************************************************************************
+
+    reg [2:0] cont_state = 0;
+    reg cont_busy_reg = 0;
+
+    always @(posedge CLK_I) begin
+        if(RST_I) begin
+            //reset!
+            ns_ststrobe <= 0;
+            ns_nybbin <= 0;
+            cont_state <= 0;
+            cont_busy_reg <= 0;
+        end else if (STB_I & ~cont_busy_reg) begin
+            //strobe came along while we're not busy! let's get rolling
+            cont_busy_reg <= 1;
+            cont_state <= 3'b001; //bump out of idle
+        end else begin
+            // load nybble, pulse strobe, wait for not busy (and can load next nybble in the meantime!)
+            // or maybe not, depending on how the nybble is handled.
+            // pulse strobe and wait done.
+
+            //state 0 is idle.
+            case(cont_state)
+                3'b000: begin
+                    cont_busy_reg <= 0;
+                end
+
+                3'b001: begin
+                    //wait for strobe to drop
+                    if(~STB_I) begin
+                        cont_state <= cont_state + 1;
+                    end
+                end
+
+                //state 1, cue up first nybble
+                3'b010: begin
+                    //do we send lower nybble first? if so, do this, otherwise swap with the other one
+                    ns_nybbin <= {i_lcd_data[3],i_lcd_data[2],i_lcd_data[1],i_lcd_data[0]};
+                    cont_state <= cont_state + 1;
+                end
+
+                3'b011: begin
+                    //raise strobe - may not need all these states but can tighten up yes?
+                    ns_ststrobe <= 1;
+                    cont_state <= cont_state + 1;
+                end
+
+                3'b100: begin
+                    //drop strobe - may not need all these states but can tighten up yes?
+                    ns_ststrobe <= 0;
+                    cont_state <= cont_state + 1;
+                end
+
+                3'b101: begin
+                    //wait for busy to drop - MAY NEED A WAIT STATE ? nope seems to work
+                    if(~ns_busy) begin
+                        cont_state <= cont_state +1;
+                        //do we send upper nybble last? if so, do this, otherwise swap with the other one
+                        ns_nybbin <= {i_lcd_data[7],i_lcd_data[6],i_lcd_data[5],i_lcd_data[4]};
+                    end
+                end
+
+                3'b110: begin
+                    //raise strobe - may not need all these states but can tighten up yes?
+                    ns_ststrobe <= 1;
+                    cont_state <= cont_state + 1;
+                end
+
+                3'b111: begin
+                    //drop strobe - may not need all these states but can tighten up yes?
+                    ns_ststrobe <= 0;
+                    cont_state <= 0;           //go back to idle. subsequent calls will wait for busy.
+                end
+            endcase
+        end
+    end
+
+    assign busy = cont_busy_reg;
+
+    /*
+    //moving syscon stuff to top....??? tb will need it too
+    reg busy_reg = 0;               //for synching busy flag
+    reg active = 0;                 //0 means in reset so post-reset can spot
+    reg [3:0] nybble = 0;           //nybble to send to LCD
+	reg already_did_reset = 0;		//if 1, means that the LCD has gone through the power-on reset and should get a different "warm boot" reset,
+									//assuming that it's already in nybble mode. If the caller has put it into some crazy state, feh. Will try to protect against.
+									//SO THIS IS OUTSIDE THE INFLUENCE OF RST_I. it's the LCD's initialized bit, not the controller's... this is probably awful style but ???
+    */
+
+    /*
 	//HERE INSTANTIATE A STATE TIMER MODULE SO I CAN SEE HOW IT LOOKS IN GTKWAVE
 	//annoying that parameterizing needs a separate calculation on bits to hold tenth, but we'll figure it out
 	reg[`H4_TIMER_BITS-1:0] timer_value = 0;
@@ -305,7 +448,7 @@ module hd44780_controller(
     //be nice for the presentation of a nybble on the output.
     //here's how UW https://courses.cs.washington.edu/courses/cse370 does it
     //localparam IDLE=0, WAITFORB=1, DONE=2, ERROR=3;
-
+    */
     /* Here is the initialization sequence given in http://web.alfredstate.edu/faculty/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
     Copyright © 2009, 2010, 2012 Donald Weiman
     (weimandn@alfredstate.edu)
@@ -415,6 +558,7 @@ module hd44780_controller(
     ... This COULD maybe be done as a little table of nybble, delay - but let's do a state machine
     */
 
+    /*
     // **********************************************
     // SO HERE IS THE LIST OF STATES WE'LL BE DEALING WITH IN THIS MODULE -
     // THIS WILL AMOUNT TO A BUNCH OF USES OF THE TIMER MODULE AND THE NYBBLE SENDER MODULE
@@ -488,5 +632,6 @@ module hd44780_controller(
         end
     end
     assign busy = busy_reg;
+    */
 
 endmodule

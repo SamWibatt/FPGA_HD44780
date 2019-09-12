@@ -38,9 +38,9 @@ module hd44780_tb;
     wire led_b, led_r;
     //looks like the pwm parameters like registers - not quite sure how they work, but let's
     //just create some registers and treat them as active-high ... Well, we'll see what we get.
-    reg led_r_reg = 0;
-    reg led_g_reg = 0;
-    reg led_b_reg = 0;
+    //reg led_r_reg = 0;
+    //reg led_g_reg = 0;
+    //reg led_b_reg = 0;
 
     //LED driver setup for 5k, rip out
     // SB_RGBA_DRV rgb (
@@ -83,141 +83,56 @@ module hd44780_tb;
         );
 
 
+    reg cont_ststart = 0;               // start strobe for controller, issued by this module
+    reg lcd_rs = 0;                     // reg holding hd44780 register select bit
+    reg [7:0] lcd_byte = 0;             // byte to send with controller
+    wire cont_busy;
+    wire o_rs;                          //output from FPGA to actual LCD, pkg pin. little weird we pass that through cont,
+                                        //but it may want to reason over it or block it or something at some point
+                                        //or sync it, or something like that
+    wire [3:0] o_lcd_nybble;        //output from controller's nybble sender to LCD, package pins
+    wire o_lcd_e;                       //package pin to LCD enable line e
+
+    hd44780_controller cont(
+        .RST_I(wb_reset), //input wire RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+        .CLK_I(wb_clk), //input wire CLK_I,
+        .STB_I(cont_ststart), //input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
+        .i_rs(lcd_rs), //input wire i_rs,                     //register select - command or data, will go to LCD RS pin
+        .i_lcd_data(lcd_byte), //input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
+        .busy(cont_busy), //output wire busy,
+    	.alive_led(led_outwire), //output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
+        .o_rs(o_rs), //output wire o_rs,
+        .o_lcd_data(o_lcd_nybble), //output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+                                        //see above in nybble sender
+        .o_e(o_lcd_e) //output wire o_e                 //LCD enable pin
+        );
+
+
     //whatever we're testing, we need to dump gtkwave-viewable trace
     initial begin
         $dumpfile("hd44780_tb.vcd");
         $dumpvars(0, hd44780_tb);
     end
 
-
-    //we're not quite ready to try the whole controller. Let's do little modules first - timer and nybble sender.
-    // hd44780_controller controller(
-    //
-    //     );
-
-    /* HERE IS THE TESTBENCH FOR THE STATE TIMER 
-    // ------------------------8<--------------------------------8<-----------------------------------
-    // module hd44780_state_timer  #(parameter SYSFREQ = `H4_SYSFREQ, parameter STATE_TIMER_BITS = `H4_TIMER_BITS)
-    // (
-    //     input wire RST_I,
-    //     input wire CLK_I,
-    // 	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
-    //     input wire start_strobe,            // causes timer to load
-    //     output wire end_strobe             // nudges caller to advance state
-    //     );
-
-    reg[`H4_TIMER_BITS-1:0] time_len = 0;
-    reg ststrobe = 0;                       //start strobe
-    //wire ststrobe_wire = ststrobe;        //try this assign to see if start strobe will work with it
-    wire endstrobe;
-    hd44780_state_timer stimey(
-        .RST_I(wb_reset),
-        .CLK_I(wb_clk),
-        .DAT_I(time_len),
-        .start_strobe(ststrobe), //(ststrobe_wire),       //this was ststrobe, and we weren't seeing the strobe in controller
-        .end_strobe(endstrobe)
-        );
-
-    //ok so here is our little benchie for the state timer!
-    //put in a number, raise and lower strobe, roll a while and see about that end strobe!
-    //cases: load while running (should trample old and do new)
-    //1 cycle wait, 0 cycle wait?
-
     initial begin
-        //***********************************************************************************************
-        //***********************************************************************************************
-        //***********************************************************************************************
-        //OK, HERE IS A THING, if you raise a strobe on an odd # in this tb, and lower it in #1,
-        //that's not enough of a signal to trigger a strobe! the clock is 2 tb-ticks wide, yes?
-        //THIS HAS NOT BEEN UPDATED FOR THE 5-tick clock, 10-tick sysclk version, if that ends up being useful
-        //***********************************************************************************************
-        //***********************************************************************************************
-        //***********************************************************************************************
-        #18 time_len = `H4_DELAY_100US;
-        #2 ststrobe = 1;
-        //is this too short?
-        //#1 ststrobe = 0; //it appears to be! Let's see if it works on an even tick (orig first was #17)
-        //if first is #17
-        //we should do #2 anyway bc clock tick is 2 sim ticks? Yes.
-        #20 ststrobe = 0;       //ok so what this shews is that the timer raises its out strobe n ticks
-                                //after instrobe is raised - if it's 1 tick wide. Better to look at it as
-                                //n-1 ticks after strobe drops, and we want n ticks after strobe drops.
-                                //now fixed
+        //#5 tick, 10 ticks/syclck
+        #90 lcd_byte = 8'b0110_1101;            //distinctive nybbles
+        #10 cont_ststart = 1;                   //strobe lcd controller
+        #10 cont_ststart = 0;
+        #2500 $finish;
 
-
-        //let's try a real degenerate case - but one that's going to come up at slow clock speeds - 1 tick
-        #50 time_len = 1;   //`H4_DELAY_100US;
-        #2 ststrobe = 1;
-        #8 ststrobe = 0; //it appears to be! Let's see if it works on an even tick (orig first was #17)
-
-        //let's try a real degenerate case - one that should never come up, but I should trap for it.
-        //expected behavior is that end strobe comes high the cycle after startstrobe drops.
-        #50 time_len = 0;
-        #2 ststrobe = 1;
-        #2 ststrobe = 0; //it appears to be! Let's see if it works on an even tick (orig first was #17)
-
-        #1000 $finish;
-    end
-    // ------------------------8<--------------------------------8<-----------------------------------
-    END HERE IS THE TB FOR STATE TIMER */
-    
-    /* TB FOR NYBBLE SENDER */
-    // ------------------------8<--------------------------------8<-----------------------------------
-    //now here is a tb for a nybble sender! DO THIS ONE WITH A HIGH ENOUGH CLOCK SPEED THAT THE COUNTER IN NYBSEN IS MEANINGFUL - trying 12000000
-    //module hd44780_nybble_sender(
-    //    input RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
-    //    input CLK_I,
-    //    input STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
-    //    input i_rs,                     //register select - command or data, will go to LCD RS pin
-    //    input wire[3:0] i_nybble,       //nybble we're sending
-    //    output wire o_busy,             //whether this module is busy
-    //    output wire [3:0] o_lcd_data,   //the data bits we send really are 7:4 - I guess others NC? tied low?
-    //    output wire o_rs,
-    //    output wire o_e                 //LCD enable pin
-    //    );
-
-    reg ststrobe = 0;                       //start strobe
-    wire busy;
-    reg rs_reg = 0;
-    reg [3:0] nybbin = 4'b0000;
-    
-    //in real hardware these are package pins
-    wire pin_busy;
-    wire [3:0] pins_data;
-    wire pin_rs;
-    wire pin_e;
-    
-    hd44780_nybble_sender nybsen(
-        .RST_I(wb_reset),
-        .CLK_I(wb_clk),
-        .STB_I(ststrobe),
-        .i_rs(rs_reg),
-        .i_nybble(nybbin),
-        .o_busy(pin_busy),
-        .o_lcd_data(pins_data),
-        .o_rs(pin_rs),
-        .o_e(pin_e) 
-    );
-    
-    initial begin
-        //set up and send some stuff, osberve behavior of nybble sender
-        /* for the #1 clk, 2-tick system clock
-        #18 nybbin = 4'b1011;           //pick a distinctive nybble
-        rs_reg = 1;                       //and send rs high just 'cause
-        #2 ststrobe = 1;
-        #2 ststrobe = 0;
-        #1000 $finish;
-        */
-        //#5 tick, 10 ticks/syclck, swh
+        //************************ THIS IS FROM NYBBLE SENDER DEMO
+        /*
         #90 nybbin = 4'b1011;           //pick a distinctive nybble
         rs_reg = 1;                       //and send rs high just 'cause
         #10 ststrobe = 1;
         #10 ststrobe = 0;
         #2500 $finish;
-
+        */
     end
-    // ------------------------8<--------------------------------8<-----------------------------------
-    /* END TB FOR NYBBLE SENDER */
+
+
+
 
 endmodule
 
