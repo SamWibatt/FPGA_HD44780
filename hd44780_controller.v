@@ -334,6 +334,16 @@ module hd44780_controller(
     reg cont_busy_reg = 0;
     reg [7:0] i_lcd_data_shadow = 0;    // save off a copy of i_lcd data so spurious changes on the input lines don't trash nybbles
 
+    //state defines
+    localparam st_c_idle = 3'b000;
+    localparam st_c_waitstb = 3'b001;
+    localparam st_c_nyb1 = 3'b010;
+    localparam st_c_stb1 = 3'b011;
+    localparam st_c_dstb1 = 3'b100;
+    localparam st_c_nyb2 = 3'b101;
+    localparam st_c_stb2 = 3'b110;
+    localparam st_c_dstb2 = 3'b111;
+
     always @(posedge CLK_I) begin
         if(RST_I) begin
             //reset!
@@ -354,11 +364,11 @@ module hd44780_controller(
 
             //state 0 is idle.
             case(cont_state)
-                3'b000: begin
+                st_c_idle: begin
                     cont_busy_reg <= 0;
                 end
 
-                3'b001: begin
+                st_c_waitstb: begin
                     //wait for strobe to drop
                     if(~STB_I) begin
                         i_lcd_data_shadow <= i_lcd_data;    //save off input byte so changes on the input lines don't mess up nybbles asynchronously
@@ -367,40 +377,42 @@ module hd44780_controller(
                 end
 
                 //state 1, cue up first nybble
-                3'b010: begin
+                st_c_nyb1: begin
                     //do we send lower nybble first? if so, do this, otherwise swap with the other one
-                    ns_nybbin <= {i_lcd_data_shadow[3],i_lcd_data_shadow[2],i_lcd_data_shadow[1],i_lcd_data_shadow[0]};
+                    //nope, we send upper nyb first.
+                    ns_nybbin <= {i_lcd_data_shadow[7],i_lcd_data_shadow[6],i_lcd_data_shadow[5],i_lcd_data_shadow[4]};
                     cont_state <= cont_state + 1;
                 end
 
-                3'b011: begin
+                st_c_stb1: begin
                     //raise strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 1;
                     cont_state <= cont_state + 1;
                 end
 
-                3'b100: begin
+                st_c_dstb1: begin
                     //drop strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 0;
                     cont_state <= cont_state + 1;
                 end
 
-                3'b101: begin
+                st_c_nyb2: begin
                     //wait for busy to drop - MAY NEED A WAIT STATE ? nope seems to work
                     if(~ns_busy) begin
                         cont_state <= cont_state +1;
                         //do we send upper nybble last? if so, do this, otherwise swap with the other one
-                        ns_nybbin <= {i_lcd_data_shadow[7],i_lcd_data_shadow[6],i_lcd_data_shadow[5],i_lcd_data_shadow[4]};
+                        //nope, it's last, so moved low nybble here
+                        ns_nybbin <= {i_lcd_data_shadow[3],i_lcd_data_shadow[2],i_lcd_data_shadow[1],i_lcd_data_shadow[0]};
                     end
                 end
 
-                3'b110: begin
+                st_c_stb2: begin
                     //raise strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 1;
                     cont_state <= cont_state + 1;
                 end
 
-                3'b111: begin
+                st_c_dstb2: begin
                     //drop strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 0;
                     cont_state <= 0;           //go back to idle. subsequent calls will wait for busy.
