@@ -1,0 +1,46 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Fri Sep 13 03:28:55 2019
+[*]
+[dumpfile] "/home/sean/dev/FPGA/FPGA_HD44780/hd44780_nybsen_tb.fst"
+[dumpfile_mtime] "Fri Sep 13 03:23:44 2019"
+[dumpfile_size] 943
+[savefile] "/home/sean/dev/FPGA/FPGA_HD44780/nybsen_test.gtkw"
+[timestart] 0
+[size] 1331 713
+[pos] -29 -29
+*-8.370605 1603 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] hd44780_nybsen_tb.
+[sst_width] 223
+[signals_width] 150
+[sst_expanded] 1
+[sst_vpaned_height] 192
+@28
+[color] 1
+hd44780_nybsen_tb.syscon.CLK_O
+[color] 1
+hd44780_nybsen_tb.syscon.RST_O
+@22
+hd44780_nybsen_tb.nybsen.STDC[3:0]
+@28
+hd44780_nybsen_tb.nybsen.busy_reg
+hd44780_nybsen_tb.nybsen.e_reg
+@22
+hd44780_nybsen_tb.nybsen.i_nybble[3:0]
+@28
+hd44780_nybsen_tb.nybsen.i_rs
+hd44780_nybsen_tb.ststrobe
+[color] 3
+hd44780_nybsen_tb.nybsen.o_busy
+[color] 3
+hd44780_nybsen_tb.nybsen.o_e
+@22
+[color] 3
+hd44780_nybsen_tb.nybsen.o_lcd_data[3:0]
+[color] 3
+hd44780_nybsen_tb.nybsen.o_lcd_reg[3:0]
+@28
+[color] 3
+hd44780_nybsen_tb.nybsen.o_rs
+[pattern_trace] 1
+[pattern_trace] 0

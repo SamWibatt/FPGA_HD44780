@@ -1,0 +1,47 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Fri Sep 13 03:37:07 2019
+[*]
+[dumpfile] "/home/sean/dev/FPGA/FPGA_HD44780/hd44780_timer_tb.fst"
+[dumpfile_mtime] "Fri Sep 13 03:33:21 2019"
+[dumpfile_size] 5756
+[savefile] "/home/sean/dev/FPGA/FPGA_HD44780/timer_test.gtkw"
+[timestart] 11051
+[size] 1331 713
+[pos] -29 -29
+*-9.088955 12300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] hd44780_timer_tb.
+[sst_width] 223
+[signals_width] 142
+[sst_expanded] 1
+[sst_vpaned_height] 192
+@28
+[color] 1
+hd44780_timer_tb.clk
+[color] 1
+hd44780_timer_tb.endstrobe
+[color] 1
+hd44780_timer_tb.ststrobe
+@22
+[color] 1
+hd44780_timer_tb.time_len[20:0]
+@28
+[color] 1
+hd44780_timer_tb.wb_clk
+[color] 1
+hd44780_timer_tb.wb_reset
+hd44780_timer_tb.stimey.CLK_I
+hd44780_timer_tb.stimey.RST_I
+@22
+hd44780_timer_tb.stimey.st_count[20:0]
+hd44780_timer_tb.stimey.DAT_I[20:0]
+@28
+hd44780_timer_tb.stimey.dat_was_0
+hd44780_timer_tb.stimey.end_strobe_reg
+hd44780_timer_tb.stimey.strobe_dropped
+[color] 3
+hd44780_timer_tb.stimey.start_strobe
+[color] 3
+hd44780_timer_tb.stimey.end_strobe
+[pattern_trace] 1
+[pattern_trace] 0
