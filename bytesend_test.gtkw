@@ -2,10 +2,10 @@
 [*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
 [*] Thu Sep 12 18:26:42 2019
 [*]
-[dumpfile] "/home/sean/FPGAgit/FPGA_HD44780/hd44780_tb.fst"
+[dumpfile] "/home/sean/FPGAgit/FPGA_HD44780/hd44780_bytesend_tb.fst"
 [dumpfile_mtime] "Thu Sep 12 18:24:30 2019"
 [dumpfile_size] 2739
-[savefile] "/home/sean/FPGAgit/FPGA_HD44780/cont_test.gtkw"
+[savefile] "/home/sean/FPGAgit/FPGA_HD44780/bytesend_test.gtkw"
 [timestart] 0
 [size] 1885 931
 [pos] -1 -1
