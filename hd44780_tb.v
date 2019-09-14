@@ -163,7 +163,7 @@ module hd44780_tb;
         #110 lcd_byte = 8'b1100_1011;
         lcd_rs = 0;
         #10 cont_ststart = 1;                   //strobe lcd controller
-        #10 cont_ststart = 0;
+        #170 cont_ststart = 0;                  //try a long strobe 
 
         #2500 $finish;
 
