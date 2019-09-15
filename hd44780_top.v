@@ -6,15 +6,42 @@
 // Main module -----------------------------------------------------------------------------------------
 
 module hd44780_top(
+`ifndef SIM_STEP
+    //if we're not doing a simulation, we need these pcf pins
     //lcd output pins
     output wire lcd_rs,                 //R/S pin - R/~W is tied low
     output wire lcd_e,                  //enable!
     output wire [3:0] lcd_data,         //data
     output wire alive_led,              //alive-blinky, use rgb green ... from controller
     output wire led_b,                  //blue led bc rgb driver needs it
-    output wire led_r                   //red led
+    output wire led_r,                   //red led
+    output wire o_led0,     //set_io o_led0 36
+    output wire o_led1,     //set_io o_led1 42
+    output wire o_led2,     //set_io o_led2 38
+    output wire o_led3      //set_io o_led3 28
+`endif
     );
 
+`ifdef SIM_STEP
+    //testbench equivalents to the module ports up there
+    wire lcd_rs;                 //R/S pin - R/~W is tied low
+    wire lcd_e;                  //enable!
+    wire [3:0] lcd_data;         //data
+    wire alive_led;              //alive-blinky, use rgb green ... from controller
+    wire led_b;                  //blue led bc rgb driver needs it
+    wire led_r;                   //red led
+    wire o_led0;     //set_io o_led0 36
+    wire o_led1;     //set_io o_led1 42
+    wire o_led2;     //set_io o_led2 38
+    wire o_led3;     //set_io o_led3 28
+
+    //***************** HERE HAVE TB-STYLE CLOCK
+    //and then the clock, simulation style, 10 cycles per posedge on sys clk
+    reg clk = 1;            //try this to see if it makes aligning clock delays below work right - they were off by half a cycle
+    always #5 clk = (clk === 1'b0);
+
+`else
+    //not sim-step;
     //and then the clock, up5k style
     // enable the high frequency oscillator,
 	// which generates a 48 MHz clock
@@ -45,7 +72,9 @@ module hd44780_top(
     defparam rgb.RGB0_CURRENT = "0b000001";     //4mA for Full Mode; 2mA for Half Mode
     defparam rgb.RGB1_CURRENT = "0b000001";     //see SiliconBlue ICE Technology doc
     defparam rgb.RGB2_CURRENT = "0b000001";
+`endif
 
+    //stuff that is not particular to
     wire led_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
     //assign led_outwire =
 
@@ -69,8 +98,14 @@ module hd44780_top(
         .CLK_O(wb_clk)
         );
 
-    hd44780_controller controller(
-            //GOING TO GO WRITE THIS IN TB AND BRING IT BACK HERE 
+    hd44780_state_timer timey(
+        .RST_I(wb_reset),
+        .CLK_I(wb_clk),
+    	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
+        input wire start_strobe,            // causes timer to load
+        output wire end_strobe             // nudges caller to advance state
         );
+
+    //THEN OTHER STUFF
 
 endmodule
