@@ -48,7 +48,7 @@ module hd44780_controller(
 );
 
 	// Super simple "I'm Alive" blinky on one of the external LEDs.
-	parameter GREENBLINKBITS = 25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
+	parameter GREENBLINKBITS = `H4_TIMER_BITS + 4;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
 											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
 											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
 	reg[GREENBLINKBITS-1:0] greenblinkct = 0;

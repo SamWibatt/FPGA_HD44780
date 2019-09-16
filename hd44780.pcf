@@ -10,7 +10,7 @@
 # need to bring red and blue in for the SB_RGBA_DRV
 set_io led_r	41
 # sean changes from led_g
-set_io the_led	39
+set_io alive_led	39
 set_io led_b	40
 
 # FTDI chip, which sort of works
@@ -22,15 +22,17 @@ set_io -nowarn spi_cs 16 # Drive high to ensure that the SPI flash is disabled
 
 # Normal GPIO pins, left side
 # sean notes let's put our alive-LEDs here. make them active low to be consistent with the RGB one
-set_io -nowarn gpio_23 23
-set_io -nowarn gpio_25 25
-set_io -nowarn gpio_26 26
-set_io -nowarn gpio_27 27
+# these were gpio_23, _25, _26, _27
+set_io lcd_data[0] 23
+set_io lcd_data[1] 25
+set_io lcd_data[2] 26
+set_io lcd_data[3] 27
 set_io -nowarn gpio_32 32
 set_io -nowarn gpio_35 35
 set_io -nowarn gpio_31 31
-set_io -nowarn gpio_37 37
-set_io -nowarn gpio_34 34
+# were gpio_37 and _34
+set_io lcd_rs 37				
+set_io lcd_e 34
 set_io -nowarn gpio_43 43
 # these were gpio_36, 42, 38, 28
 set_io o_led0 36
