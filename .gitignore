@@ -1,6 +1,6 @@
 *.fst
-sim_tb_out.txt
-sim_tb_err.txt
+*_out.txt
+*_err.txt
 *.vvp
 *.json
 *.vcd
