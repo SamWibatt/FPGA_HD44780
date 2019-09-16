@@ -62,9 +62,6 @@ then
 	# in the nextpnr/ice40/main.cc file, look for the word "package."
 	package="sg48"
 
-	# yosys produces the .json file from all the verilog sources. See the .ys file for details.
-	yosys "$proj".ys
-
 	# **************************************************************************************************************
 	# **************************************************************************************************************
 	# **************************************************************************************************************
@@ -97,6 +94,9 @@ then
 	# **************************************************************************************************************
 	# **************************************************************************************************************
 	# **************************************************************************************************************
+	# yosys produces the .json file from all the verilog sources. See the .ys file for details.
+	yosys "$proj".ys
+
 	# nextpnr does place-and-route, associating the design with the particular hardware layout
 	# given in the .pcf.
 	nextpnr-ice40 --"$device" --package "$package" --json "$proj".json --pcf "$proj".pcf --asc "$proj".asc
