@@ -45,7 +45,7 @@ then
 	fi
 
 	echo "Non-sim build! Target is ${target}"
-	
+
 	# device targeted, use one of the architecture flags from nextpnr-ice40's help:
 	#Architecture specific options:
 	#  --lp384                     set device type to iCE40LP384
@@ -84,7 +84,8 @@ then
 	elif [ "$target" == "ctrlr" ]
 	then
 		echo ctrlr placeholder - build not implemented yet!
-		exit 1
+        echo but I will drop thru
+		#exit 1
 	else
 		echo "UNRECOGNIZED TARGET ${target}"
 		exit 1
@@ -111,7 +112,7 @@ then
 	# you may have to sudo.
 	# **************************************************************************************************************
 	# **************************************************************************************************************
-	# **************************************************************************************************************	
+	# **************************************************************************************************************
 else
 	# ok, this IS a simulation run, have target $2 default to controller too
 	if [ "$2" != "" ]
@@ -148,7 +149,7 @@ else
 		# or just do it here
 		vcd2fst hd44780_nybsen_tb.vcd hd44780_nybsen_tb.fst
 		rm -f hd44780_nybsen_tb.vcd
-		#gtkwave -o hd44780_nybsen_tb.fst &	
+		#gtkwave -o hd44780_nybsen_tb.fst &
 	elif [ "$target" == "bytesend" ]
 	then
 		# ASSUMES CONTROLLER DOES NOTHING BUT SEND A BYTE, a la goal 3

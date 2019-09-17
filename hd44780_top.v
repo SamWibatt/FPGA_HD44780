@@ -25,11 +25,20 @@
 // `define H4NS_TICKS_PWEH  (22)
 // `define H4NS_COUNT_BITS  (6)
 
+//new way with include
+
+`ifndef SIM_STEP
+`include "./hd44780_build_config.inc"
+`else
+`include "./hd44780_sim_config.inc"
+`endif
+
 // Main module -----------------------------------------------------------------------------------------
 
 module hd44780_top(
 `ifndef SIM_STEP
     //if we're not doing a simulation, we need these pcf pins
+    input the_button,           //active low button - this module will invert
     //lcd output pins
     output wire lcd_rs,                 //R/S pin - R/~W is tied low
     output wire lcd_e,                  //enable!
@@ -46,7 +55,7 @@ module hd44780_top(
     );
 
     //VARS FOR EITHER SIM OR BUILD
-    
+
 
 `ifdef SIM_STEP
     //testbench equivalents to the module ports up there
@@ -66,7 +75,7 @@ module hd44780_top(
     //and then the clock, simulation style, 10 cycles per posedge on sys clk
     reg clk = 1;            //try this to see if it makes aligning clock delays below work right - they were off by half a cycle
     always #5 clk = (clk === 1'b0);
-    
+
     wire button_acthi = ~the_button;            //not sure about this! Test in tb
 
 `else
@@ -80,7 +89,7 @@ module hd44780_top(
 		.CLKHFEN(1'b1),
 		.CLKHF(clk)
 	);
-    
+
     // INPUT BUTTON - after https://discourse.tinyfpga.com/t/internal-pullup-in-bx/800
     wire button_internal;
     wire button_acthi;
@@ -92,14 +101,14 @@ module hd44780_top(
         .D_IN_0(button_internal)
     );
     assign button_acthi = ~button_internal;
-    
+
 
     //looks like the pwm parameters like registers - not quite sure how they work, but let's
     //just create some registers and treat them as active-high ... Well, we'll see what we get.
     reg led_r_pwm_reg = 0;
     reg led_g_pwm_reg = 0;
     reg led_b_pwm_reg = 0;
-    
+
     SB_RGBA_DRV rgb (
       .RGBLEDEN (1'b1),         // enable LED
       .RGB0PWM  (led_g_pwm_reg),    //these appear to be single-bit parameters. ordering determined by experimentation and may be wrong
@@ -114,8 +123,15 @@ module hd44780_top(
     defparam rgb.RGB0_CURRENT = "0b000001";     //4mA for Full Mode; 2mA for Half Mode
     defparam rgb.RGB1_CURRENT = "0b000001";     //see SiliconBlue ICE Technology doc
     defparam rgb.RGB2_CURRENT = "0b000001";
-    
-    
+
+
+`endif
+
+    //stuff that is not particular to
+    wire led_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
+    //assign led_outwire =
+
+    //alive blinky
     parameter PWMbits = 3;              // for dimming test, try having LED on only 1/2^PWMbits of the time
     reg[PWMbits-1:0] pwmctr = 0;
     always @(posedge clk) begin
@@ -126,12 +142,12 @@ module hd44780_top(
         pwmctr <= pwmctr + 1;
     end
 
-    
+
 `endif
 
     //copied verbatim from controller.
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
-	parameter GREENBLINKBITS = `H4_TIMER_BITS + 4;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
+	parameter GREENBLINKBITS = `H4_TIMER_BITS + 2;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
 											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
 											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
 	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
@@ -141,12 +157,12 @@ module hd44780_top(
 
 	wire led_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
 
-    //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS - 
+    //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS -
     reg reg_led0 = 0;
     reg reg_led1 = 0;
     reg reg_led2 = 0;
     reg reg_led3 = 0;
-    
+
     always @(posedge clk) begin
         //for top pure blinky, set all active low other-blinkies to off
         reg_led0 <= 1;
@@ -155,7 +171,7 @@ module hd44780_top(
         reg_led3 <= 1;
     end
 
-    //place holder registers for red and blue LEDs of RGB. green taken up by 
+    //place holder registers for red and blue LEDs of RGB. green taken up by
     reg led_b_reg = 0;
     reg led_r_reg = 0;
 
@@ -166,13 +182,13 @@ module hd44780_top(
     end
 
 
-    
+
     //wire lcd_rs;                 //R/S pin - R/~W is tied low
     assign lcd_rs = 0;
     //wire lcd_e;                  //enable!
     assign lcd_e = 0;
     //wire [3:0] lcd_data;         //data
-    assign lcd_data = 4'b1010;     //distinctive thing 
+    assign lcd_data = 4'b1010;     //distinctive thing
     //wire alive_led;              //alive-blinky, handled above
     //wire led_b;                  //blue led bc rgb driver needs it
     /* all this stuff looks necessary but ends up generating multiple-driver errors.
@@ -188,10 +204,10 @@ module hd44780_top(
     //wire o_led3;     //set_io o_led3 28
     assign o_led3 = reg_led3;     //act low
     */
-    
 
-    
-    
+
+
+
 	/* LATER when we know the blinky works
     //we DO also want a wishbone syscon and a controller!
     wire wb_reset;
@@ -202,15 +218,21 @@ module hd44780_top(
         .CLK_O(wb_clk)
         );
 
+    reg [`H4_TIMER_BITS-1:0] st_dat = 0;
+    reg st_start_stb = 0;
+    wire st_end_stb;
     hd44780_state_timer timey(
         .RST_I(wb_reset),
         .CLK_I(wb_clk),
-    	input wire [STATE_TIMER_BITS-1:0] DAT_I,	//[STATE_TIMER_BITS-1:0] DAT_I,
-        input wire start_strobe,            // causes timer to load
-        output wire end_strobe             // nudges caller to advance state
+    	.DAT_I(st_dat),
+        .start_strobe(st_start_stb),            // causes timer to load
+        .end_strobe(st_end_stb)             // nudges caller to advance state
         );
 
     //THEN OTHER STUFF
-	end LATER when we know the blinky works */
-
+    //super first test: just turn on green LED
+    //FIGURE THIS OUT and write the alive-blinkies in the timer and nybsen and all
+    assign led_outwire = 1;
+    assign alive_led = 1;       //dunt work.
+    */
 endmodule
