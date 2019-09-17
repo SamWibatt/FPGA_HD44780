@@ -1,7 +1,11 @@
 // all top does is contain / handle platform-dependent stuff.
 // it supplies a clock to a controller.
 // and whatever else I feel like. For this project, it's like the main for the chosen build.
-//WIRING IS THE SAME FOR ALL THE SUBPROJECTS! on the up5k,
+//WIRING IS THE SAME FOR ALL THE SUBPROJECTS! on the up5k, Well, see the pcf. and the top module ports.
+//the only tricky one is the_button, up5k gpio 4, which should be an input, active low, pulled up.
+//everything else is LCD signals r_s/e/nybble, a bunch of alive LEDs (some active high, the up5k's rgb module,)
+// some active low (external alive-LEDs, which go +V -> current limiting resistor -> anode, cathode -> pin)
+
 
 
 `default_nettype	none
@@ -29,19 +33,9 @@
 // `define H4NS_TICKS_PWEH  (22)
 // `define H4NS_COUNT_BITS  (6)
 
-//new way with include
-
-`ifndef SIM_STEP
-`include "./hd44780_build_config.inc"
-`else
-`include "./hd44780_sim_config.inc"
-`endif
-
 // Main module -----------------------------------------------------------------------------------------
 
 module hd44780_top(
-    //if we're not doing a simulation, we need these pcf pins
-    input the_button,           //active low button - this module will invert
     //lcd output pins
     output wire lcd_rs,                 //R/S pin - R/~W is tied low
     output wire lcd_e,                  //enable!
@@ -53,7 +47,8 @@ module hd44780_top(
     output wire o_led0,     //set_io o_led0 36
     output wire o_led1,     //set_io o_led1 42
     output wire o_led2,     //set_io o_led2 38
-    output wire o_led3      //set_io o_led3 28
+    output wire o_led3,      //set_io o_led3 28
+    output wire logan_strobe    // strobe out pin to ping the logic analyzer to start
     );
 
     // PLATFORM-SPECIFIC STUFF ==================================================================================
@@ -105,8 +100,8 @@ module hd44780_top(
     defparam rgb.RGB2_CURRENT = "0b000001";
 
     //stuff that is not particular to
-    wire led_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
-    //assign led_outwire =
+    wire led_g_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
+    //assign led_g_outwire =
 
     //alive blinky
     parameter PWMbits = 3;              // for dimming test, try having LED on only 1/2^PWMbits of the time
@@ -114,13 +109,38 @@ module hd44780_top(
     always @(posedge clk) begin
         //assign output of main blinky to the driver module
         //ok, even this is a little too bright.
-        //led_g_reg <= led_outwire;              //output from blinky is active high now , used to have ~led_outwire
-        led_g_pwm_reg <= (&pwmctr) & led_outwire;    //when counter is all ones, turn on (if we're in a blink)
+        //led_g_reg <= led_g_outwire;              //output from blinky is active high now , used to have ~led_g_outwire
+        led_g_pwm_reg <= (&pwmctr) & led_g_outwire;    //when counter is all ones, turn on (if we're in a blink)
         led_b_pwm_reg <= (&pwmctr) & led_b_outwire;
         led_r_pwm_reg <= (&pwmctr) & led_r_outwire;
         pwmctr <= pwmctr + 1;
     end
     // END PLATFORM-SPECIFIC STUFF ==============================================================================
+
+    //*****************************************************************************************
+    //NOW STUFF FOR TESTING THE LCD PINS!
+    reg lcd_rs_reg = 0;
+    reg lcd_e_reg = 0;
+    reg [3:0] lcd_data_reg = 4'b0000;
+    //*****************************************************************************************
+
+    always @(posedge clk) begin
+        //SEE below for button stuff
+        if(button_has_been_pressed) begin
+            //meaningless but logic-analyzer-capturable signas that will start when button is pressed,
+            //see below.
+            lcd_e_reg <= ~lcd_e_reg;
+            lcd_rs_reg <= lcd_data_reg[1];
+            lcd_data_reg <= lcd_data_reg + 1;
+        end
+    end
+
+    //wire lcd_rs;                 //R/S pin - R/~W is tied low
+    assign lcd_rs = lcd_rs_reg;
+    //wire lcd_e;                  //enable!
+    assign lcd_e = lcd_e_reg;
+    //wire [3:0] lcd_data;         //data
+    assign lcd_data = lcd_data_reg;     //distinctive thing
 
     // TESTER OF ALL LEDs =======================================================================================
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
@@ -132,7 +152,7 @@ module hd44780_top(
 		greenblinkct <= greenblinkct + 1;
 	end
 
-	wire led_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+	wire led_g_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
     //let's test red and blue, too
     wire led_b_outwire = greenblinkct[GREENBLINKBITS-1];
     wire led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
@@ -143,37 +163,36 @@ module hd44780_top(
     reg reg_led2 = 0;
     reg reg_led3 = 0;
 
+    // HERE IS THE BUTTON THING - single register that just remembers if button has EVER been pressed,
+    // which doesn't have to be very accurate (and I'm curious to see how it looks) for the logic analyzer.
+    // So now this circuit will have the RGB LEDs only blinking along, external LEDs dark, until you push the
+    // button, and then the alives fire up.
+    reg button_has_been_pressed = 0;
+    reg logan_strobe_reg = 0;           //sync signal for when the logic analyzer strobe pin goes high
+
     always @(posedge clk) begin
-        //for top pure blinky, set all active low other-blinkies to off
-        //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
-        reg_led0 <= greenblinkct[GREENBLINKBITS-2];
-        reg_led1 <= ~greenblinkct[GREENBLINKBITS-3];
-        reg_led2 <= greenblinkct[GREENBLINKBITS-3];
-        reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
+        if(button_has_been_pressed) begin
+            //for top pure blinky, set all active low other-blinkies to off
+            //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
+            reg_led0 <= greenblinkct[GREENBLINKBITS-2];
+            reg_led1 <= ~greenblinkct[GREENBLINKBITS-3];
+            reg_led2 <= greenblinkct[GREENBLINKBITS-3];
+            reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
+        end else begin
+            if(button_acthi) begin
+                //try a completely undebounced button press - this is what the logic analyzer will watch for too
+                //looks pretty harmless.
+                button_has_been_pressed <= 1;
+                logan_strobe_reg <= 1;      // yay, fling logic analyzer strobe to a pin tt
+            end
+            // glue LEDs off
+            reg_led0 <= 1;
+            reg_led1 <= 1;
+            reg_led2 <= 1;
+            reg_led3 <= 1;
+        end
     end
-    // END TESTER OF ALL LEDs ===================================================================================
 
-    // ****************************************************************************************
-    // ****************************************************************************************
-    // ****************************************************************************************
-    // DO SOMETHING WITH BUTTON!
-    // ****************************************************************************************
-    // ****************************************************************************************
-    // ****************************************************************************************
-
-    //*****************************************************************************************
-    //NOW STUFF FOR TESTING THE LCD PINS!
-    reg lcd_rs_reg = 0;
-    reg lcd_e_reg = 0;
-    reg [3:0] lcd_data_reg = 4'b0000;
-    //*****************************************************************************************
-
-    //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    assign lcd_rs = lcd_rs_reg;
-    //wire lcd_e;                  //enable!
-    assign lcd_e = lcd_e_reg;
-    //wire [3:0] lcd_data;         //data
-    assign lcd_data = lcd_data_reg;     //distinctive thing
     //wire o_led0;     //set_io o_led0 36
     assign o_led0 = reg_led0;     //act low
     //wire o_led1;     //set_io o_led1 42
@@ -182,6 +201,12 @@ module hd44780_top(
     assign o_led2 = reg_led2;     //act low
     //wire o_led3;     //set_io o_led3 28
     assign o_led3 = reg_led3;     //act low
+    //logic analyzer waits for pos edge of this
+    assign logan_strobe = logan_strobe_reg;
+
+    // END TESTER OF ALL LEDs ===================================================================================
+
+
 
 
 
@@ -211,7 +236,7 @@ module hd44780_top(
     //THEN OTHER STUFF
     //super first test: just turn on green LED
     //FIGURE THIS OUT and write the alive-blinkies in the timer and nybsen and all
-    assign led_outwire = 1;
+    assign led_g_outwire = 1;
     assign led_g = 1;       //dunt work.
     */
 endmodule

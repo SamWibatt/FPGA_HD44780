@@ -32,7 +32,8 @@ set_io -nowarn gpio_31 31
 # were gpio_37 and _34
 set_io lcd_rs 37
 set_io lcd_e 34
-set_io -nowarn gpio_43 43
+# this was gpio_43, now logic analyzer strobe, have LA watch for this to go high
+set_io logan_strobe 43
 # these were gpio_36, 42, 38, 28
 set_io o_led0 36
 set_io o_led1 42
