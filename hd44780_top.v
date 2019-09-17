@@ -1,5 +1,9 @@
 // all top does is contain / handle platform-dependent stuff.
 // it supplies a clock to a controller.
+// and whatever else I feel like. For this project, it's like the main for the chosen build.
+//WIRING IS THE SAME FOR ALL THE SUBPROJECTS! on the up5k,
+
+
 `default_nettype	none
 
 //project wide timing data
@@ -36,7 +40,6 @@
 // Main module -----------------------------------------------------------------------------------------
 
 module hd44780_top(
-`ifndef SIM_STEP
     //if we're not doing a simulation, we need these pcf pins
     input the_button,           //active low button - this module will invert
     //lcd output pins
@@ -44,41 +47,16 @@ module hd44780_top(
     output wire lcd_e,                  //enable!
     output wire [3:0] lcd_data,         //data
     input wire the_button,              //button
-    output wire alive_led,              //alive-blinky, use rgb green ... from controller
+    output wire led_g,              //alive-blinky, use rgb green ... from controller
     output wire led_b,                  //blue led bc rgb driver needs it
     output wire led_r,                   //red led
     output wire o_led0,     //set_io o_led0 36
     output wire o_led1,     //set_io o_led1 42
     output wire o_led2,     //set_io o_led2 38
     output wire o_led3      //set_io o_led3 28
-`endif
     );
 
-    //VARS FOR EITHER SIM OR BUILD
-
-
-`ifdef SIM_STEP
-    //testbench equivalents to the module ports up there
-    wire lcd_rs;                 //R/S pin - R/~W is tied low
-    wire lcd_e;                  //enable!
-    wire [3:0] lcd_data;         //data
-    wire the_button;
-    wire alive_led;              //alive-blinky, use rgb green ... from controller
-    wire led_b;                  //blue led bc rgb driver needs it
-    wire led_r;                   //red led
-    wire o_led0;     //set_io o_led0 36
-    wire o_led1;     //set_io o_led1 42
-    wire o_led2;     //set_io o_led2 38
-    wire o_led3;     //set_io o_led3 28
-
-    //***************** HERE HAVE TB-STYLE CLOCK
-    //and then the clock, simulation style, 10 cycles per posedge on sys clk
-    reg clk = 1;            //try this to see if it makes aligning clock delays below work right - they were off by half a cycle
-    always #5 clk = (clk === 1'b0);
-
-    wire button_acthi = ~the_button;            //not sure about this! Test in tb
-
-`else
+    // PLATFORM-SPECIFIC STUFF ==================================================================================
     //not sim-step;
     //and then the clock, up5k style
     // enable the high frequency oscillator,
@@ -105,6 +83,8 @@ module hd44780_top(
 
     //looks like the pwm parameters like registers - not quite sure how they work, but let's
     //just create some registers and treat them as active-high ... Well, we'll see what we get.
+    //these work basically like an "on" bit, just write a 1 to turn LED on. PWM comes from you
+    //switching it on and off and stuff.
     reg led_r_pwm_reg = 0;
     reg led_g_pwm_reg = 0;
     reg led_b_pwm_reg = 0;
@@ -115,7 +95,7 @@ module hd44780_top(
       .RGB1PWM  (led_b_pwm_reg),    //driven from registers within counter arrays in every example I've seen
       .RGB2PWM  (led_r_pwm_reg),    //so I will do similar
       .CURREN   (1'b1),         // supply current; 0 shuts off the driver (verify)
-      .RGB0     (alive_led),    //Actual Hardware connection - output wires. looks like it goes 0=green
+      .RGB0     (led_g),    //Actual Hardware connection - output wires. looks like it goes 0=green
       .RGB1     (led_b),        //1 = blue
       .RGB2     (led_r)         //2 = red - but verify
     );
@@ -123,9 +103,6 @@ module hd44780_top(
     defparam rgb.RGB0_CURRENT = "0b000001";     //4mA for Full Mode; 2mA for Half Mode
     defparam rgb.RGB1_CURRENT = "0b000001";     //see SiliconBlue ICE Technology doc
     defparam rgb.RGB2_CURRENT = "0b000001";
-
-
-`endif
 
     //stuff that is not particular to
     wire led_outwire;       //************ NEED TO DRIVE THIS WITH SOME BLINKINESS or what?
@@ -139,13 +116,13 @@ module hd44780_top(
         //ok, even this is a little too bright.
         //led_g_reg <= led_outwire;              //output from blinky is active high now , used to have ~led_outwire
         led_g_pwm_reg <= (&pwmctr) & led_outwire;    //when counter is all ones, turn on (if we're in a blink)
+        led_b_pwm_reg <= (&pwmctr) & led_b_outwire;
+        led_r_pwm_reg <= (&pwmctr) & led_r_outwire;
         pwmctr <= pwmctr + 1;
     end
+    // END PLATFORM-SPECIFIC STUFF ==============================================================================
 
-
-`endif
-
-    //copied verbatim from controller.
+    // TESTER OF ALL LEDs =======================================================================================
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
 	parameter GREENBLINKBITS = `H4_TIMER_BITS + 2;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
 											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
@@ -156,6 +133,9 @@ module hd44780_top(
 	end
 
 	wire led_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+    //let's test red and blue, too
+    wire led_b_outwire = greenblinkct[GREENBLINKBITS-1];
+    wire led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
 
     //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS -
     reg reg_led0 = 0;
@@ -165,36 +145,35 @@ module hd44780_top(
 
     always @(posedge clk) begin
         //for top pure blinky, set all active low other-blinkies to off
-        reg_led0 <= 1;
-        reg_led1 <= 1;
-        reg_led2 <= 1;
-        reg_led3 <= 1;
+        //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
+        reg_led0 <= greenblinkct[GREENBLINKBITS-2];
+        reg_led1 <= ~greenblinkct[GREENBLINKBITS-3];
+        reg_led2 <= greenblinkct[GREENBLINKBITS-3];
+        reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
     end
+    // END TESTER OF ALL LEDs ===================================================================================
 
-    //place holder registers for red and blue LEDs of RGB. green taken up by
-    reg led_b_reg = 0;
-    reg led_r_reg = 0;
+    // ****************************************************************************************
+    // ****************************************************************************************
+    // ****************************************************************************************
+    // DO SOMETHING WITH BUTTON!
+    // ****************************************************************************************
+    // ****************************************************************************************
+    // ****************************************************************************************
 
-    always @(posedge clk) begin
-        //for top pure blinky, set red and blue RGBs off
-        led_b_reg <= 1;
-        led_r_reg <= 1;
-    end
-
-
+    //*****************************************************************************************
+    //NOW STUFF FOR TESTING THE LCD PINS!
+    reg lcd_rs_reg = 0;
+    reg lcd_e_reg = 0;
+    reg [3:0] lcd_data_reg = 4'b0000;
+    //*****************************************************************************************
 
     //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    assign lcd_rs = 0;
+    assign lcd_rs = lcd_rs_reg;
     //wire lcd_e;                  //enable!
-    assign lcd_e = 0;
+    assign lcd_e = lcd_e_reg;
     //wire [3:0] lcd_data;         //data
-    assign lcd_data = 4'b1010;     //distinctive thing
-    //wire alive_led;              //alive-blinky, handled above
-    //wire led_b;                  //blue led bc rgb driver needs it
-    /* all this stuff looks necessary but ends up generating multiple-driver errors.
-    assign led_b = led_b_reg; //assuming act high       - THESE WILL BE SET BY STUFF LIKE THE ALIVE BLINKY ABOVE>..
-    //wire led_r;                   //red led
-    assign led_r = led_r_reg; //assuming act high
+    assign lcd_data = lcd_data_reg;     //distinctive thing
     //wire o_led0;     //set_io o_led0 36
     assign o_led0 = reg_led0;     //act low
     //wire o_led1;     //set_io o_led1 42
@@ -203,7 +182,7 @@ module hd44780_top(
     assign o_led2 = reg_led2;     //act low
     //wire o_led3;     //set_io o_led3 28
     assign o_led3 = reg_led3;     //act low
-    */
+
 
 
 
@@ -233,6 +212,6 @@ module hd44780_top(
     //super first test: just turn on green LED
     //FIGURE THIS OUT and write the alive-blinkies in the timer and nybsen and all
     assign led_outwire = 1;
-    assign alive_led = 1;       //dunt work.
+    assign led_g = 1;       //dunt work.
     */
 endmodule
