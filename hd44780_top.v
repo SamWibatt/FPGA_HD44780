@@ -5,7 +5,8 @@
 //the only tricky one is the_button, up5k gpio 4, which should be an input, active low, pulled up.
 //everything else is LCD signals r_s/e/nybble, a bunch of alive LEDs (some active high, the up5k's rgb module,)
 // some active low (external alive-LEDs, which go +V -> current limiting resistor -> anode, cathode -> pin)
-
+// Divided clock down to run at 6MHz so can pick stuff up better with logic analysizer,
+//
 
 
 `default_nettype	none
@@ -55,13 +56,33 @@ module hd44780_top(
     //not sim-step;
     //and then the clock, up5k style
     // enable the high frequency oscillator,
-	// which generates a 48 MHz clock
+	// which generates a 48 MHz clock - later, divided down to 6 MHz. 
+    /* Ice40 osc user guide page 8 has this div thing -
+    SB_HFOSC OSCInst0 (
+    .CLKHFEN(ENCLKHF),
+    .CLKHFPU(CLKHF_POWERUP),
+    .CLKHF(CLKHF)
+    ) / * synthesis ROUTE_THROUGH_FABRIC= [0|1] * /;
+    Defparam OSCInst0.CLKHF_DIV = 2’b00;
+    */
 	wire clk;
+    /* original
 	SB_HFOSC u_hfosc (
 		.CLKHFPU(1'b1),
 		.CLKHFEN(1'b1),
 		.CLKHF(clk)
 	);
+    */
+    //ok, this way of setting the divider worked, and 0b10 should be /4 = 12MHz. Let's rerun
+    //the config for build setup for ... let's do 6MHz, /8, for better logic analysizer read.
+    SB_HFOSC #(.CLKHF_DIV("0b11")) u_hfosc (
+		.CLKHFPU(1'b1),
+		.CLKHFEN(1'b1),
+		.CLKHF(clk)
+	);
+    //The SB_HFOSC primitive contains the following parameter and their default values:
+    //Parameter CLKHF_DIV = 2’b00 : 00 = div1, 01 = div2, 10 = div4, 11 = div8 ; Default = “00”
+    //Defparam u_hfosc.CLKHF_DIV = 2’b10;     //test div 4
 
     // INPUT BUTTON - after https://discourse.tinyfpga.com/t/internal-pullup-in-bx/800
     wire button_internal;
