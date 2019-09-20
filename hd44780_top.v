@@ -56,7 +56,7 @@ module hd44780_top(
     //not sim-step;
     //and then the clock, up5k style
     // enable the high frequency oscillator,
-	// which generates a 48 MHz clock - later, divided down to 6 MHz. 
+	// which generates a 48 MHz clock - later, divided down to 6 MHz.
     /* Ice40 osc user guide page 8 has this div thing -
     SB_HFOSC OSCInst0 (
     .CLKHFEN(ENCLKHF),
@@ -140,6 +140,7 @@ module hd44780_top(
 
     //*****************************************************************************************
     //NOW STUFF FOR TESTING THE LCD PINS!
+    //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
     reg lcd_rs_reg = 0;
     reg lcd_e_reg = 0;
     reg [3:0] lcd_data_reg = 4'b0000;
