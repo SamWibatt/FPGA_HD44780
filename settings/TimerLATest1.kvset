@@ -38,7 +38,7 @@
         <chnShowName14/>
         <chnShowName15/>
         <disAutoUpdate/>
-        <lastUpdate>2019-09-20_18:02:55</lastUpdate>
+        <lastUpdate>2019-09-21_07:34:11</lastUpdate>
         <zeroSmpCnt/>
         <ratioSasPix>0</ratioSasPix>
         <recentAnalyzers>libCAN.so,libI2C.so,libSPI.so,libUART.so</recentAnalyzers>
@@ -68,12 +68,12 @@
         </LA2016>
         <LA1010>
             <trgPosition/>
-            <chnTrig>0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0</chnTrig>
+            <chnTrig>0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0</chnTrig>
             <chnEnable>1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0</chnEnable>
             <smpDepth/>
             <smpDepthIndex/>
-            <smpFrequ>32000</smpFrequ>
-            <smpFrequIndex>4</smpFrequIndex>
+            <smpFrequ>100000</smpFrequ>
+            <smpFrequIndex>0</smpFrequIndex>
             <chnLevel/>
             <chnVth/>
         </LA1010>

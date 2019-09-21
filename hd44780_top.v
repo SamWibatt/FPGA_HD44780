@@ -226,6 +226,7 @@ module hd44780_top(
                 end
 
                 tt_loadtm: begin
+                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
                     //timer test
                     st_dat <= 114;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
                     st_start_stb <= 1;
@@ -240,7 +241,8 @@ module hd44780_top(
                 end
 
                 tt_lockup: begin
-                    //nothing happens HERE
+                    //nothing happens HERE. used to go to idle, which gave us infinity timer calls, so if you want that, etc.
+                    lcd_rs_reg <= 0;         //using rs to track when this state machine is active
                     st_start_stb <= 0;
                 end
 
@@ -269,9 +271,9 @@ module hd44780_top(
     end
 
     //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    assign lcd_rs = st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
+    assign lcd_rs = lcd_rs_reg; // was st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
     //wire lcd_e;                  //enable!
-    assign lcd_e = st_end_stb;  //mirror end strobe with e for LA visitbility - was lcd_e_reg;
+    assign lcd_e = st_end_stb | st_start_stb;  //mirror START AND end strobe with e for LA visitbility - was lcd_e_reg;
     //wire [3:0] lcd_data;         //data
     assign lcd_data = lcd_data_reg;     //What's something interesting to do with lcd_data_reg? currently counting
 
