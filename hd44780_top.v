@@ -208,8 +208,11 @@ module hd44780_top(
         .end_strobe(st_end_stb)             // nudges caller to advance state
         );
 
-    reg [1:0] ttest_state = 0;
-    localparam tt_idle = 0, tt_loadtm = 2'b01, tt_waitend = 2'b10, tt_lockup = 2'b11;
+    reg [2:0] ttest_state = 0;
+    localparam tt_idle = 0, tt_loadtm = 3'b001, tt_waitend = 3'b010,
+        tt_loadtm2 = 3'b011, tt_waitend2 = 3'b100,
+        tt_loadtm3 = 3'b101, tt_waitend3 = 3'b110,
+        tt_lockup = 3'b111;
 
     always @(posedge clk) begin
         //SEE below for button stuff.
@@ -236,9 +239,40 @@ module hd44780_top(
                 tt_waitend: begin
                     st_start_stb <= 0;
                     if(st_end_stb) begin
+                        ttest_state = tt_loadtm2;
+                    end
+                end
+
+                tt_loadtm2: begin
+                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
+                    //timer test
+                    st_dat <= 1;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
+                    st_start_stb <= 1;
+                    ttest_state <= tt_waitend2;
+                end
+
+                tt_waitend2: begin
+                    st_start_stb <= 0;
+                    if(st_end_stb) begin
+                        ttest_state = tt_loadtm3;
+                    end
+                end
+
+                tt_loadtm3: begin
+                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
+                    //timer test
+                    st_dat <= 0;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
+                    st_start_stb <= 1;
+                    ttest_state <= tt_waitend3;
+                end
+
+                tt_waitend3: begin
+                    st_start_stb <= 0;
+                    if(st_end_stb) begin
                         ttest_state = tt_lockup;
                     end
                 end
+
 
                 tt_lockup: begin
                     //nothing happens HERE. used to go to idle, which gave us infinity timer calls, so if you want that, etc.
