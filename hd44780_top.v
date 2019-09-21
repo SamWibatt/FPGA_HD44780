@@ -138,6 +138,47 @@ module hd44780_top(
     end
     // END PLATFORM-SPECIFIC STUFF ==============================================================================
 
+    // MULTI-USEFUL STUFF =======================================================================================
+
+    //syscon!
+    //we DO also want a wishbone syscon and a controller!
+    wire wb_reset;
+    wire syscon_reset;
+    wire wb_clk;
+    hd44780_syscon syscon(
+        .i_clk(clk),
+        .RST_O(syscon_reset),
+        .CLK_O(wb_clk)
+        );
+
+
+    // HERE IS THE BUTTON THING - single register that just remembers if button has EVER been pressed,
+    // which doesn't have to be very accurate (and I'm curious to see how it looks) for the logic analyzer.
+    // So now this circuit will have the RGB LEDs only blinking along, external LEDs dark, until you push the
+    // button, and then the alives fire up.
+    reg button_has_been_pressed = 0;
+    reg logan_strobe_reg = 0;           //sync signal for when the logic analyzer strobe pin goes high
+
+    always @(posedge clk) begin
+        if(~button_has_been_pressed) begin
+            if(button_acthi) begin
+                //try a completely undebounced button press - this is what the logic analyzer will watch for too
+                //looks pretty harmless.
+                button_has_been_pressed <= 1;
+                logan_strobe_reg <= 1;      // yay, fling logic analyzer strobe to a pin tt
+            end
+        end
+    end
+
+    //extend the reset to wait for the button to be pressed.
+    //that way, the wishbone-like stuff won't trigger until we're ready to
+    //capture it.
+    assign wb_reset = syscon_reset | ~button_has_been_pressed;
+    //logic analyzer waits for pos edge of this
+    assign logan_strobe = logan_strobe_reg;
+
+    // end MULTI-USEFUL STUFF ===================================================================================
+
     //*****************************************************************************************
     //NOW STUFF FOR TESTING THE LCD PINS!
     //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
@@ -146,23 +187,93 @@ module hd44780_top(
     reg [3:0] lcd_data_reg = 4'b0000;
     //*****************************************************************************************
 
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    //state timer test
+    reg [`H4_TIMER_BITS-1:0] st_dat = 0;
+    reg st_start_stb = 0;
+    wire st_end_stb;
+
+    hd44780_state_timer timey(
+        .RST_I(wb_reset),
+        .CLK_I(wb_clk),
+        .DAT_I(st_dat),
+        .start_strobe(st_start_stb),            // causes timer to load
+        .end_strobe(st_end_stb)             // nudges caller to advance state
+        );
+
+    reg [1:0] ttest_state = 0;
+    localparam tt_idle = 0, tt_loadtm = 2'b01, tt_waitend = 2'b10, tt_lockup = 2'b11;
+
     always @(posedge clk) begin
-        //SEE below for button stuff
+        //SEE below for button stuff.
+        //assume that if button has been pressed, we're not in wb_reset.
         if(button_has_been_pressed) begin
-            //meaningless but logic-analyzer-capturable signas that will start when button is pressed,
+
+            //downcount data reg just to have it have something to do
+            lcd_data_reg <= lcd_data_reg - 1;
+
+            case (ttest_state)
+                tt_idle: begin
+                    //so... given we're not in reset, step on out.
+                    ttest_state <= tt_loadtm;
+                end
+
+                tt_loadtm: begin
+                    //timer test
+                    st_dat <= 114;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
+                    st_start_stb <= 1;
+                    ttest_state <= tt_waitend;
+                end
+
+                tt_waitend: begin
+                    st_start_stb <= 0;
+                    if(st_end_stb) begin
+                        ttest_state = tt_lockup;
+                    end
+                end
+
+                tt_lockup: begin
+                    //nothing happens HERE
+                    st_start_stb <= 0;
+                end
+
+                default: begin
+                    ttest_state <= tt_idle;
+                    st_start_stb <= 0;
+                    st_dat <= 0;
+                end
+            endcase
+
+            /* this was the first LA test
+            //meaningless but logic-analyzer-capturable signals that will start when button is pressed,
             //see below.
             lcd_e_reg <= ~lcd_e_reg;
             lcd_rs_reg <= lcd_data_reg[1];
             lcd_data_reg <= lcd_data_reg + 1;
+            */
+        end else begin
+            //button has NOT been pressed, which amounts to reset.
+            ttest_state <= tt_idle;
+            st_start_stb <= 0;
+            st_dat <= 0;
+            lcd_e_reg <= 0;     //mirror end strobe with lcd e for LA vis
+            lcd_rs_reg <= 0;    //mirror start strobe with lcd RS reg, for LA visibility.
         end
     end
 
     //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    assign lcd_rs = lcd_rs_reg;
+    assign lcd_rs = st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
     //wire lcd_e;                  //enable!
-    assign lcd_e = lcd_e_reg;
+    assign lcd_e = st_end_stb;  //mirror end strobe with e for LA visitbility - was lcd_e_reg;
     //wire [3:0] lcd_data;         //data
-    assign lcd_data = lcd_data_reg;     //distinctive thing
+    assign lcd_data = lcd_data_reg;     //What's something interesting to do with lcd_data_reg? currently counting
 
     // TESTER OF ALL LEDs =======================================================================================
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
@@ -185,12 +296,7 @@ module hd44780_top(
     reg reg_led2 = 0;
     reg reg_led3 = 0;
 
-    // HERE IS THE BUTTON THING - single register that just remembers if button has EVER been pressed,
-    // which doesn't have to be very accurate (and I'm curious to see how it looks) for the logic analyzer.
-    // So now this circuit will have the RGB LEDs only blinking along, external LEDs dark, until you push the
-    // button, and then the alives fire up.
-    reg button_has_been_pressed = 0;
-    reg logan_strobe_reg = 0;           //sync signal for when the logic analyzer strobe pin goes high
+    //mad alive blinkies
 
     always @(posedge clk) begin
         if(button_has_been_pressed) begin
@@ -201,12 +307,6 @@ module hd44780_top(
             reg_led2 <= greenblinkct[GREENBLINKBITS-3];
             reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
         end else begin
-            if(button_acthi) begin
-                //try a completely undebounced button press - this is what the logic analyzer will watch for too
-                //looks pretty harmless.
-                button_has_been_pressed <= 1;
-                logan_strobe_reg <= 1;      // yay, fling logic analyzer strobe to a pin tt
-            end
             // glue LEDs off
             reg_led0 <= 1;
             reg_led1 <= 1;
@@ -223,8 +323,6 @@ module hd44780_top(
     assign o_led2 = reg_led2;     //act low
     //wire o_led3;     //set_io o_led3 28
     assign o_led3 = reg_led3;     //act low
-    //logic analyzer waits for pos edge of this
-    assign logan_strobe = logan_strobe_reg;
 
     // END TESTER OF ALL LEDs ===================================================================================
 
