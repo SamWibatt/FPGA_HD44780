@@ -177,8 +177,17 @@ module hd44780_top(
     //logic analyzer waits for pos edge of this
     assign logan_strobe = logan_strobe_reg;
 
+
+    // alive-blinky wires:
+    wire led_g_outwire; // = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+    wire led_b_outwire; // = greenblinkct[GREENBLINKBITS-1];
+    wire led_r_outwire; // = ~greenblinkct[GREENBLINKBITS-2];
+
+
     // end MULTI-USEFUL STUFF ===================================================================================
 
+`ifdef LCD_TARGET_TIMER
+    //this doesn't work here $display("doing target timer top!");
     //*****************************************************************************************
     //NOW STUFF FOR TESTING THE LCD PINS!
     //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
@@ -321,10 +330,9 @@ module hd44780_top(
 		greenblinkct <= greenblinkct + 1;
 	end
 
-	wire led_g_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
-    //let's test red and blue, too
-    wire led_b_outwire = greenblinkct[GREENBLINKBITS-1];
-    wire led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
+	assign led_g_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+    assign led_b_outwire = greenblinkct[GREENBLINKBITS-1];
+    assign led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
 
     //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS -
     reg reg_led0 = 0;
@@ -361,7 +369,7 @@ module hd44780_top(
     assign o_led3 = reg_led3;     //act low
 
     // END TESTER OF ALL LEDs ===================================================================================
-
+`endif //LCD_TARGET_TIMER - work out what else can be extracted
 
 
 

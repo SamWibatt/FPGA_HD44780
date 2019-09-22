@@ -69,10 +69,12 @@ then
 	# **************************************************************************************************************
 	# **************************************************************************************************************
 	# **************************************************************************************************************
+	#builddef="UNKNOWN"
 	if [ "$target" == "timer" ]
 	then
-		echo timer placeholder - build not implemented yet!
-		exit 1
+		echo building timer top
+		#builddef="TIMER"
+		YS_BUILD_TARGET="LCD_TARGET_TIMER"
 	elif [ "$target" == "nybsen" ]
 	then
 		echo nybsen placeholder - build not implemented yet!
@@ -84,19 +86,55 @@ then
 	elif [ "$target" == "ctrlr" ]
 	then
 		echo ctrlr placeholder - build not implemented yet!
-        echo but I will drop thru
-		#exit 1
+        #echo but I will drop thru
+		exit 1
 	else
 		echo "UNRECOGNIZED TARGET ${target}"
 		exit 1
 	fi
 
 	# AND THE GUTS FOR EACH OF THOSE WILL LOOK SOMETHING LIKE THIS
+	# or just have the top.v use the define - how to pass it in?
+	# https://stackoverflow.com/questions/44463230/parameters-to-script
+	# says:
+	# The only way to do that at the moment is using environment variables and TCL scripts. For example, you can write a TCL script test.tcl:
+	# yosys read_verilog $::env(VLOG_FILE_NAME)
+	# yosys synth -top $::env(TOP_MODULE)
+	# yosys write_verilog output.v
+	# And then call if with VLOG_FILE_NAME and TOP_MODULE set in the environment:
+	# VLOG_FILE_NAME=tests/simple/fiedler-cooley.v TOP_MODULE=up3down5 yosys test.tcl
+	# If you are running Yosys from a shell script you can also simply run something like export VLOG_FILE_NAME=...
+	# at the top of your script. Similarly you can use the export Makefile statement when you are running Yosys from a Makefile.
+	# though that's not quite what I'm looking for
+	# aha, the yosys manual says that the ys file command read_verilog takes options, one of which is
+	# -Dname[=definition]
+	# define the preprocessor symbol ’name’ and set its optional value ’definition’
+	# so let's do something in the ys like symbol name YS_BUILD_TARGET and the value $target.
+	# how to communicate?
+	# - could see if that could be put in as an -m on the yosys command line, doing just the $proj_top.v module
+	# there, and the rest are in the ys?
+	# - could see if setting it in here as an environment var and picking it up in ys is possible?
+	# there's that command line format like VAR=value command options...
+	# manual has e.g. YOSYS_COVER_DIR="{dir-name}" yosys {args}
 	# **************************************************************************************************************
 	# **************************************************************************************************************
 	# **************************************************************************************************************
 	# yosys produces the .json file from all the verilog sources. See the .ys file for details.
-	yosys "$proj".ys
+	# not sure this works, plus I want like YS_BUILD_TARGET_TIMER so can just do ifdef YS_BUILD_TARGET=$builddef
+	# so just have the if block above do it with exports - ok, got that.
+	# now how to communicate them to the yosys script? Wait, maybe back to YS_BUILD_TARGET having difft values
+	# ok hardcode worked in ys
+	# read_verilog -DLCD_TARGET_TIMER hd44780_top.v
+	# OK THIS BOTH IMPROVES AND DISIMPROVES the process of duplicating projects. moving this stuff out of the ys
+	# file because I can't figure out how to communicate env vars or whatever over there, so this has to be hardcoded
+	# to use the list of modules specific to this project.
+	# so, I've put the proj-spec stuff in the first line, and can probably pull it out into a variable.
+	# DO THAT!
+	# on the plus side, the ys file had to be maintained separately too.
+	yosys -p "read_verilog hd44780_timer.v; read_verilog hd44780_nybsen.v; read_verilog hd44780_controller.v; read_verilog hd44780_syscon.v; \
+		read_verilog -D$YS_BUILD_TARGET ${proj}_top.v; \
+		synth_ice40 -top ${proj}_top; write_json ${proj}.json"
+	#used to just be yosys "$proj".ys
 
 	# nextpnr does place-and-route, associating the design with the particular hardware layout
 	# given in the .pcf.
