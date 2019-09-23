@@ -143,3 +143,18 @@ import csv
 # where type is optional, defaulting to wire
 # width is optional, defaulting to 1
 # vars are given in what order? Either msb to lsb or the other way around. 
+
+# reading that as yaml appears to work - this is after doing pip install PyYAML
+#Python 3.6.8 (default, Aug 20 2019, 17:12:48) 
+#[GCC 8.3.0] on linux
+#Type "help", "copyright", "credits" or "license" for more information.
+#>>> import yaml
+#>>> with open('RandomGarbageKVtoCSV.yaml','rt') as yamfile:
+#...     yamdocs = yaml.load_all(yamfile)
+#...     first_yamdoc = next(yamdocs)
+#...     print("Yamdoc dict: {}".format(first_yamdoc))
+#... 
+#Yamdoc dict: {'LData': {'type': 'wire', 'width': 4, 'vars': ['LCD Data 0', 'LCD Data 1', 'LCD Data 2', 'LCD Data 3']}, 
+#              'RS': {'type': 'wire', 'width': 1, 'vars': ['LCD RS']}, 
+#              'E': {'type': 'wire', 'width': 1, 'vars': ['LCD E']}, 
+#              'LA_Strobe': {'vars': ['Logan Stb']}}
