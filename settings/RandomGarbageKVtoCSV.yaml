@@ -1,0 +1,25 @@
+# YAML comments!
+LData:
+  type: wire
+  width: 4
+  vars:
+    - LCD Data 0
+    - LCD Data 1
+    - LCD Data 2
+    - LCD Data 3
+
+RS:
+ type: wire
+ width: 1
+ vars:
+   - LCD RS
+
+E:
+ type: wire
+ width: 1
+ vars:
+   - LCD E
+
+LA_Strobe:
+ vars:
+   - Logan Stb
