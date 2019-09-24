@@ -1,6 +1,7 @@
 # kvis2vcd.py - script to convert csv file exported from KingstVIS logic analyzer software to vcd for use with gtkwave
-# Usage: kvis2vcd (csv exported from KingstVIS) [yaml config file]
+# Usage: kvis2vcd (csv exported from KingstVIS) (output gtkw) [yaml config file]
 # where (csv exported from KingstVIS) contains the logic analyzer traces from a KingstVIS session
+# where (output gtkw) is path/name for gtkwave file
 # (yaml config file) specifies arrangements of the signals into gtkwave signals / signal groupings
 # first version doesn't allow for hierarchy in the output, like organizing the KingstVIS signals into modules
 # but maybe it should.
