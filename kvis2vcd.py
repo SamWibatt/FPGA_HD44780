@@ -7,18 +7,26 @@
 
 import csv
 import sys
+import yaml
 
 if __name__ == "__main__":
 
     if(len(sys.argv) < 3):
-        print("Usage: kvis2vcd (csv exported from KingstVIS) [yaml config file]")
+        print("Usage: kvis2vcd (csv exported from KingstVIS) (output gtkw) [yaml config file]")
         print("where (csv exported from KingstVIS) contains the logic analyzer traces from a KingstVIS session")
+        print("where (output gtkw) is path/name for gtkwave file")
         print("(yaml config file) specifies arrangements of the signals into gtkwave signals / signal groupings")
+        print("if config file not given, all signals treated as 1 bit wire in csv column order")
         print("first version doesn't allow for hierarchy in the output, like organizing the KingstVIS signals into modules")
         sys.exit(1)
 
     csv_file_name = sys.argv[1]
-    config_file_name = sys.argv[2]
+    gtkw_file_name = sys.argv[2]
+    if len(sys.argv) > 3:
+        config_file_name = sys.argv[3]
+    else:
+        print("NOTE: no config file given. treating all signals as 1 bit wire in csv column order")
+        config_file_name = None
 
     #>>> import csv
     #>>> with open('TimerLATest.csv') as csvfile:
@@ -75,6 +83,9 @@ if __name__ == "__main__":
     #0.000005969, 1, 0, 0, 1, 1, 1, 1
     #[...]
 
+    # configuration!
+    
+    
     # what if the yaml format were like specifying the rows, and we don't care about any hierarchy because... well, this is version 1
     # LData:
     #   type: wire
@@ -106,19 +117,29 @@ if __name__ == "__main__":
     # vars are given in what order? Either msb to lsb or the other way around.
 
     # reading that as yaml appears to work - this is after doing pip install PyYAML
-    #Python 3.6.8 (default, Aug 20 2019, 17:12:48)
-    #[GCC 8.3.0] on linux
-    #Type "help", "copyright", "credits" or "license" for more information.
-    #>>> import yaml
-    #>>> with open('RandomGarbageKVtoCSV.yaml','rt') as yamfile:
-    #...     yamdocs = yaml.load_all(yamfile)
-    #...     first_yamdoc = next(yamdocs)
-    #...     print("Yamdoc dict: {}".format(first_yamdoc))
-    #...
     #Yamdoc dict: {'LData': {'type': 'wire', 'width': 4, 'vars': ['LCD Data 0', 'LCD Data 1', 'LCD Data 2', 'LCD Data 3']},
     #              'RS': {'type': 'wire', 'width': 1, 'vars': ['LCD RS']},
     #              'E': {'type': 'wire', 'width': 1, 'vars': ['LCD E']},
     #              'LA_Strobe': {'vars': ['Logan Stb']}}
+    
+    if config_file_name is not None:
+        with open(config_file_name) as yamfile:
+            yamdocs - yaml.load_all(yamfile)
+            first_yamdoc = next(yamdocs)        # yaml file may have multiple documents, may use that to implement modules
+    else:
+        # set up default dictionary mapping each signal to 1 bit wire
+        # guessing at dictionary comprehension syntax on the bus in mad traffic at 6:26 am
+        # keeping order and names from csv
+        # def gotta refac this to have a better var name
+        first_yamdoc = { k, {'type': 'wire', 'width': 1, 'vars': [k]} for k in column_names}
+
+
+
+    # OK SO HERE IS WHERE WE DO STUFF MASHING TOGETHER CSV AND YAML
+    # don't bother opening output until here bc we now know the csv exists and config 
+    # is set up. 
+
+
 
     # OUTPUT SIDE ===============================================================================================
     #
@@ -161,4 +182,4 @@ if __name__ == "__main__":
     # 	$upscope $end
     # $upscope $end
 
-    # Do I care about supporting nesting?
+    # Do I care about supporting nesting? Yes, eventually, bud this off into its own little repo-chan
