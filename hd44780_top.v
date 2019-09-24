@@ -187,134 +187,38 @@ module hd44780_top(
     // end MULTI-USEFUL STUFF ===================================================================================
 
 `ifdef LCD_TARGET_TIMER
+`include "top_timer_test_inc.v"             //breaking these out into inc files bc this will be a mess otherwise; see how that goes
+`elsif LCD_TARGET_NYBSEN
     //this doesn't work here $display("doing target timer top!");
     //*****************************************************************************************
     //NOW STUFF FOR TESTING THE LCD PINS!
     //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
-    reg lcd_rs_reg = 0;
+    //reg lcd_rs_reg = 0;
     reg lcd_e_reg = 0;
     reg [3:0] lcd_data_reg = 4'b0000;
     //*****************************************************************************************
 
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //FIGURE OUT HOW TO DO IF TARGET = TIMER HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    reg nybsen_strobe = 0;
 
-    //state timer test
-    reg [`H4_TIMER_BITS-1:0] st_dat = 0;
-    reg st_start_stb = 0;
-    wire st_end_stb;
-
-    hd44780_state_timer timey(
-        .RST_I(wb_reset),
+    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
+    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
+    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
+    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
+    module hd44780_nybble_sender(
+        .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
         .CLK_I(wb_clk),
-        .DAT_I(st_dat),
-        .start_strobe(st_start_stb),            // causes timer to load
-        .end_strobe(st_end_stb)             // nudges caller to advance state
+        .STB_I(nybsen_strobe),                    //to let this module know rs and lcd_data are ready and to do its thing.
+        .i_rs(lcd_rs),                     //register select - command or data, will go to LCD RS pin
+        .i_nybble(),       //nybble we're sending
+        .o_busy(),             //whether this module is busy
+        .o_lcd_data(),   //the data bits we send really are 7:4 - I guess others NC? tied low?
+                                        //check vpok. also I saw a way to do 7:4 -> 3:0 but - well, later
+        .o_rs(),
+        .o_e()                 //LCD enable pin
         );
 
-    reg [2:0] ttest_state = 0;
-    localparam tt_idle = 0, tt_loadtm = 3'b001, tt_waitend = 3'b010,
-        tt_loadtm2 = 3'b011, tt_waitend2 = 3'b100,
-        tt_loadtm3 = 3'b101, tt_waitend3 = 3'b110,
-        tt_lockup = 3'b111;
-
-    always @(posedge clk) begin
-        //SEE below for button stuff.
-        //assume that if button has been pressed, we're not in wb_reset.
-        if(button_has_been_pressed) begin
-
-            //downcount data reg just to have it have something to do
-            lcd_data_reg <= lcd_data_reg - 1;
-
-            case (ttest_state)
-                tt_idle: begin
-                    //so... given we're not in reset, step on out.
-                    ttest_state <= tt_loadtm;
-                end
-
-                tt_loadtm: begin
-                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
-                    //timer test
-                    st_dat <= 114;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
-                    st_start_stb <= 1;
-                    ttest_state <= tt_waitend;
-                end
-
-                tt_waitend: begin
-                    st_start_stb <= 0;
-                    if(st_end_stb) begin
-                        ttest_state = tt_loadtm2;
-                    end
-                end
-
-                tt_loadtm2: begin
-                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
-                    //timer test
-                    st_dat <= 1;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
-                    st_start_stb <= 1;
-                    ttest_state <= tt_waitend2;
-                end
-
-                tt_waitend2: begin
-                    st_start_stb <= 0;
-                    if(st_end_stb) begin
-                        ttest_state = tt_loadtm3;
-                    end
-                end
-
-                tt_loadtm3: begin
-                    lcd_rs_reg <= 1;       //now let's use RS to track the outer state machine here, why not
-                    //timer test
-                    st_dat <= 0;       //arbitrary number. We want this many system ticks bt strobe drop and strobe out.
-                    st_start_stb <= 1;
-                    ttest_state <= tt_waitend3;
-                end
-
-                tt_waitend3: begin
-                    st_start_stb <= 0;
-                    if(st_end_stb) begin
-                        ttest_state = tt_lockup;
-                    end
-                end
-
-
-                tt_lockup: begin
-                    //nothing happens HERE. used to go to idle, which gave us infinity timer calls, so if you want that, etc.
-                    lcd_rs_reg <= 0;         //using rs to track when this state machine is active
-                    st_start_stb <= 0;
-                end
-
-                default: begin
-                    ttest_state <= tt_idle;
-                    st_start_stb <= 0;
-                    st_dat <= 0;
-                end
-            endcase
-
-            /* this was the first LA test
-            //meaningless but logic-analyzer-capturable signals that will start when button is pressed,
-            //see below.
-            lcd_e_reg <= ~lcd_e_reg;
-            lcd_rs_reg <= lcd_data_reg[1];
-            lcd_data_reg <= lcd_data_reg + 1;
-            */
-        end else begin
-            //button has NOT been pressed, which amounts to reset.
-            ttest_state <= tt_idle;
-            st_start_stb <= 0;
-            st_dat <= 0;
-            lcd_e_reg <= 0;     //mirror end strobe with lcd e for LA vis
-            lcd_rs_reg <= 0;    //mirror start strobe with lcd RS reg, for LA visibility.
-        end
-    end
-
     //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    assign lcd_rs = lcd_rs_reg; // was st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
+    //assign lcd_rs = lcd_rs_reg; // was st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
     //wire lcd_e;                  //enable!
     assign lcd_e = st_end_stb | st_start_stb;  //mirror START AND end strobe with e for LA visitbility - was lcd_e_reg;
     //wire [3:0] lcd_data;         //data
@@ -369,7 +273,7 @@ module hd44780_top(
     assign o_led3 = reg_led3;     //act low
 
     // END TESTER OF ALL LEDs ===================================================================================
-`endif //LCD_TARGET_TIMER - work out what else can be extracted
+`endif //LCD_TARGET_NYBSEN - work out what else can be extracted
 
 
 

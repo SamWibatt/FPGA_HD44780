@@ -73,12 +73,11 @@ then
 	if [ "$target" == "timer" ]
 	then
 		echo building timer top
-		#builddef="TIMER"
 		YS_BUILD_TARGET="LCD_TARGET_TIMER"
 	elif [ "$target" == "nybsen" ]
 	then
-		echo nybsen placeholder - build not implemented yet!
-		exit 1
+		echo building nybsen top
+		YS_BUILD_TARGET="LCD_TARGET_NYBSEN"
 	elif [ "$target" == "bytesend" ]
 	then
 		echo bytesend placeholder - build not implemented yet!
