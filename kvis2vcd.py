@@ -76,7 +76,7 @@ if __name__ == "__main__":
             nurow = [x.strip() for x in row]            # trim leading/trailing whitespace
             if linenum == 1:
                 # first row assumed to be input names, after the time column
-                input_names = nurow[1:]
+                input_names = [re.sub("[^A-Za-z0-9_]","_",k) for k in nurow[1:]]
             else:
                 # subsequent rows are [timestamp, [values]]
                 csv_rows.append([nurow[0], nurow[1:]])
@@ -103,7 +103,9 @@ if __name__ == "__main__":
         # guessing at dictionary comprehension syntax on the bus in mad traffic at 6:26 am
         # keeping order and names from csv
         # ASSUME FIRST COLUMN IS TIME so skip it
-        config_dict = { k:{'type': 'wire', 'width': 1, 'vars': [k]} for k in input_names}     # MAY NEED TO LEGITIFY INPUT_NAMES AS VARIABLE NAMES bc "Time[s]" might not be a legal label in vcd
+        # NEED TO LEGITIFY INPUT_NAMES AS VARIABLE NAMES bc "Time[s]" might not be a legal label in vcd
+        # oh and spaces are right out - do this at the time input_names is created
+        config_dict = { k:{'type': 'wire', 'width': 1, 'vars': [k]} for k in input_names}
         var_order = input_names
 
     # TIMESCALE SETTINGS - FIGURE OUT HOW TO HANDLE THESE IN THE YAML
