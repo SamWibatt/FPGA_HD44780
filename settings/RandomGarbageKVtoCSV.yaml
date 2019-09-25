@@ -3,10 +3,10 @@ LData:
   type: wire
   width: 4
   vars:
-    - LCD Data 0
-    - LCD Data 1
-    - LCD Data 2
     - LCD Data 3
+    - LCD Data 2
+    - LCD Data 1
+    - LCD Data 0
 
 RS:
  type: wire
