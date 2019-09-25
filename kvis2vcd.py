@@ -29,7 +29,8 @@ def build_var_vals(input_vals):
         valstr = ""
         # concatenate all the input values corresponding to this variable
         for i in config_dict[v]['vars']:
-            valstr += input_vals[input_names.index(i)]
+            # was valstr += input_vals[input_names.index(i)]
+            valstr += input_vals[input_names.index(re.sub("[^A-Za-z0-9_]","_",i))]
 
         # multi-bit values start with "b" and have a space after - value has leading zeroes trimmed
         if config_dict[v]['width'] != 1:
