@@ -3,6 +3,16 @@
 
     a bit different from my previous projects' controllers; this is just the LCD driver.
     top and syscon handle the top-level stuff.
+	
+	
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
+
 
 */
 `default_nettype	none
@@ -121,7 +131,6 @@ module hd44780_controller(
     //************************************************************************************************************
     //************************************************************************************************************
     //************************************************************************************************************
-    // FIGURE THIS OUT
     // state succession is pretty easy, bc nybble sender does its own e-cycle timing, and you just
     // wait for not busy first!
     // load nybble, pulse strobe, wait for not busy (and can load next nybble in the meantime!)
@@ -130,7 +139,6 @@ module hd44780_controller(
     // lets us zoom off and do other stuff and if there are further bytes to send, no problem.
     // if not, or if like in initialization we're doing pauses in between, it'll just be immediately not-busy
     // by the time the second invocation happens.
-    // WRITE IT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //************************************************************************************************************
     //************************************************************************************************************
     //************************************************************************************************************
