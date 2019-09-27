@@ -195,34 +195,39 @@ module hd44780_top(
     //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
     //reg lcd_rs_reg = 0;
     reg lcd_e_reg = 0;
+    reg lcd_rs_reg = 0;
     reg [3:0] lcd_data_reg = 4'b0000;
     //*****************************************************************************************
 
     reg nybsen_strobe = 0;
+    wire nybsen_busy;
 
-    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
-    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
-    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
-    //PUT ACTUAL NYBBLE SENDER AND TEST OF IT HERE
-    module hd44780_nybble_sender(
+    // our nybble sender
+    module hd44780_nybble_sender nybby(
         .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
         .CLK_I(wb_clk),
         .STB_I(nybsen_strobe),                    //to let this module know rs and lcd_data are ready and to do its thing.
-        .i_rs(lcd_rs),                     //register select - command or data, will go to LCD RS pin
-        .i_nybble(),       //nybble we're sending
-        .o_busy(),             //whether this module is busy
-        .o_lcd_data(),   //the data bits we send really are 7:4 - I guess others NC? tied low?
+        .i_rs(lcd_rs_reg),                     //register select - command or data, will go to LCD RS pin
+        .i_nybble(lcd_data_reg),       //nybble we're sending
+        .o_busy(nybsen_busy),             //whether this module is busy
+        .o_lcd_data(.o_lcd_data),   //the data bits we send really are 7:4 - I guess others NC? tied low?
                                         //check vpok. also I saw a way to do 7:4 -> 3:0 but - well, later
-        .o_rs(),
-        .o_e()                 //LCD enable pin
+        .o_rs(lcd_rs),
+        .o_e(lcd_e)                 //LCD enable pin
         );
 
-    //wire lcd_rs;                 //R/S pin - R/~W is tied low
-    //assign lcd_rs = lcd_rs_reg; // was st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
-    //wire lcd_e;                  //enable!
-    assign lcd_e = st_end_stb | st_start_stb;  //mirror START AND end strobe with e for LA visitbility - was lcd_e_reg;
-    //wire [3:0] lcd_data;         //data
-    assign lcd_data = lcd_data_reg;     //What's something interesting to do with lcd_data_reg? currently counting
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // HEY TEST THE NYBBLE SENDER HERE *************************************************************************
+    // little stately that loads up a nybble and flings it on the sender and does the strobes and waits and wotnot
+    reg [2:0] ntest_state = 0;
+    localparam nt_idle = 0, nt_loadnyb = 3'b001, nt_waitend = 3'b010, nt_lockup = 3'b111;
+    
+
 
     // TESTER OF ALL LEDs =======================================================================================
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
@@ -273,7 +278,91 @@ module hd44780_top(
     assign o_led3 = reg_led3;     //act low
 
     // END TESTER OF ALL LEDs ===================================================================================
-`endif //LCD_TARGET_NYBSEN - work out what else can be extracted
+`elsif LCD_TARGET_BYTESEN
+    //this doesn't work here $display("doing target timer top!");
+    //*****************************************************************************************
+    //NOW STUFF FOR TESTING THE LCD PINS!
+    //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
+    //reg lcd_rs_reg = 0;
+    reg lcd_e_reg = 0;
+    reg [7:0] lcd_byte_reg = 8'b0000_0000;
+    //*****************************************************************************************
+
+    reg bytesen_strobe = 0;
+    wire lcd_busy;
+
+    module hd44780_bytesender bytesy(
+        .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+        .CLK_I(wb_clk),
+        .STB_I(bytesen_strobe),                    //to let this module know rs and lcd_data are ready and to do its thing.
+        .i_rs(lcd_rs_reg),                     //register select - command or data, will go to LCD RS pin
+        .i_lcd_data(i_lcd_byte),     // byte to send to LCD, one nybble at a time
+        .busy(lcd_busy),
+        .o_rs(lcd_rs),				//LCD register select
+        .o_lcd_data(o_lcd_data),   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+        .o_e(lcd_e)                 //LCD enable pin
+    );
+
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    //***************** OK WRITE SOME BEHAVIOR FOR THAT **********************************************
+    // little stately that loads up a nybble and flings it on the sender and does the strobes and waits and wotnot
+
+    // TESTER OF ALL LEDs =======================================================================================
+    // Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
+    parameter GREENBLINKBITS = `H4_TIMER_BITS + 2;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
+                                            // and hey why not define that in top or tb instead of in the controller or even on command line - ok
+                                            // now the define above is wrapped in `ifndef G_SYSFREQ so there you go
+    reg[GREENBLINKBITS-1:0] greenblinkct = 0;
+    always @(posedge clk) begin
+        greenblinkct <= greenblinkct + 1;
+    end
+
+    assign led_g_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+    assign led_b_outwire = greenblinkct[GREENBLINKBITS-1];
+    assign led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
+
+    //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS -
+    reg reg_led0 = 0;
+    reg reg_led1 = 0;
+    reg reg_led2 = 0;
+    reg reg_led3 = 0;
+
+    //mad alive blinkies
+
+    always @(posedge clk) begin
+        if(button_has_been_pressed) begin
+            //for top pure blinky, set all active low other-blinkies to off
+            //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
+            reg_led0 <= greenblinkct[GREENBLINKBITS-2];
+            reg_led1 <= ~greenblinkct[GREENBLINKBITS-3];
+            reg_led2 <= greenblinkct[GREENBLINKBITS-3];
+            reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
+        end else begin
+            // glue LEDs off
+            reg_led0 <= 1;
+            reg_led1 <= 1;
+            reg_led2 <= 1;
+            reg_led3 <= 1;
+        end
+    end
+
+    //wire o_led0;     //set_io o_led0 36
+    assign o_led0 = reg_led0;     //act low
+    //wire o_led1;     //set_io o_led1 42
+    assign o_led1 = reg_led1;     //act low
+    //wire o_led2;     //set_io o_led2 38
+    assign o_led2 = reg_led2;     //act low
+    //wire o_led3;     //set_io o_led3 28
+    assign o_led3 = reg_led3;     //act low
+
+    // END TESTER OF ALL LEDs ===================================================================================
+
+`endif //LCD_TARGET_BYTESEN - work out what else can be extracted
 
 
 

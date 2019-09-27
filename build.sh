@@ -80,8 +80,8 @@ then
 		YS_BUILD_TARGET="LCD_TARGET_NYBSEN"
 	elif [ "$target" == "bytesend" ]
 	then
-		echo bytesend placeholder - build not implemented yet!
-		exit 1
+		echo buidling bytesend top
+		YS_BUILD_TARGET="LCD_TARGET_BYTESEN"
 	elif [ "$target" == "ctrlr" ]
 	then
 		echo ctrlr placeholder - build not implemented yet!
