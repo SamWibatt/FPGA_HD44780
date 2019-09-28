@@ -113,6 +113,10 @@ if __name__ == "__main__":
     timescale_coefficient = 1
     timescale_units = "ns"
 
+    # AMOUNT OF TIME TO PAD ON THE END OF THE FILE SO IT DOESN'T STOP ABRUPTLY AFTER LAST CHANGE
+    # FIGURE OUT HOW TO HANDLE THESE IN THE YAML
+    timestamp_end_pad = 2500
+
     # OK SO HERE IS WHERE WE DO STUFF MASHING TOGETHER CSV AND YAML
     # don't bother opening output until here bc we now know the csv exists and config
     # is set up.
@@ -257,7 +261,10 @@ if __name__ == "__main__":
         timefudge = -float(first_time)
         lastvaldict = {}
         for crow in csv_rows:
-            crow[0] = '#' + str(int(math.ceil((float(crow[0]) + timefudge) / timescale_tick_sec)))
+            #print("Handling row: {}".format(crow)) # VERBOSE DEBUG
+            # calculate the row's timestamp so it'll be available after loop for padding
+            crowstamp = int(math.ceil((float(crow[0]) + timefudge) / timescale_tick_sec))
+            crow[0] = '#' + str(crowstamp)
             # we need a la
             # #0
             # $dumpvars
@@ -294,11 +301,26 @@ if __name__ == "__main__":
                 # FIGURE OUT HERE HOW THINGS CHANGED AND EMIT IT - so step through valdict by vars, and if
                 # lastvaldict[v] != valdict[v], emit valdict[v]
                 # debug vcdfile.write("{}\n".format("|".join(crow[1])))
+                # building line as string and then writing bc I thought I might need to reproduce it;
+                # so far no, but too lazy to de-refactor
+                valsstr = crow[0] + " "
                 for v in var_order:
                     if lastvaldict[v] != valdict[v]:
-                        vcdfile.write("{}{}\n".format(valdict[v],var_to_vcd_id[v]))
+                        linestr = "{}{}\n".format(valdict[v],var_to_vcd_id[v])
+                        valsstr += linestr
+                        vcdfile.write("{}".format(linestr))
+                #print("Wrote {}".format(re.sub("\\n"," | ",valsstr)))
             lastvaldict = valdict
 
+        # EMIT SOME KIND OF THING HERE EQUIVALENT TO THE DUMPVARS AT BEGINNING.
+        # like pad out by 100 ticks and ...not have any changes? Does that work?
+        # also may be leaving off last line of csv
+        # what if I just print out a timestamp? Seems to work!
+        # bigger pad maybe like 1000 ticks?
+        # ANOTHER THING TO MAKE CONFIGURABLE
+        endstamp = "#{}".format(crowstamp + timestamp_end_pad)
+        #print("Emitting end timestamp {}".format(endstamp))
+        vcdfile.write("{}\n".format(endstamp))
 
-        first_time = csv_rows[0][0]
-        print("first_time after normalization is {} of type {}".format(first_time,type(first_time)))
+        #first_time = csv_rows[0][0]
+        #print("first_time after normalization is {} of type {}".format(first_time,type(first_time)))
