@@ -189,10 +189,7 @@ else
 		#gtkwave -o hd44780_nybsen_tb.fst &
 	elif [ "$target" == "bytesen" ]
 	then
-		# ASSUMES CONTROLLER DOES NOTHING BUT SEND A BYTE, a la goal 3
 		iverilog -D SIM_STEP -o hd44780_bytesend_tb.vvp hd44780_bytesender.v hd44780_nybsen.v hd44780_bytesend_tb.v hd44780_syscon.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
-		# and so there is this kludge too
-		mv hd44780_tb.vcd hd44780_bytesend_tb.vcd
 		vvp hd44780_bytesend_tb.vvp  1>> sim_tb_out.txt 2>> sim_tb_err.txt
 		#gtkwave -o does optimization of vcd to FST format, good for the big sims
 		# or just do it here
