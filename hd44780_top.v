@@ -203,14 +203,14 @@ module hd44780_top(
     wire nybsen_busy;
 
     // our nybble sender
-    module hd44780_nybble_sender nybby(
+    hd44780_nybble_sender nybby(
         .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
         .CLK_I(wb_clk),
         .STB_I(nybsen_strobe),                    //to let this module know rs and lcd_data are ready and to do its thing.
         .i_rs(lcd_rs_reg),                     //register select - command or data, will go to LCD RS pin
         .i_nybble(lcd_data_reg),       //nybble we're sending
         .o_busy(nybsen_busy),             //whether this module is busy
-        .o_lcd_data(.o_lcd_data),   //the data bits we send really are 7:4 - I guess others NC? tied low?
+        .o_lcd_data(lcd_data),   //the data bits we send really are 7:4 - I guess others NC? tied low?
                                         //check vpok. also I saw a way to do 7:4 -> 3:0 but - well, later
         .o_rs(lcd_rs),
         .o_e(lcd_e)                 //LCD enable pin
@@ -226,8 +226,63 @@ module hd44780_top(
     // little stately that loads up a nybble and flings it on the sender and does the strobes and waits and wotnot
     reg [2:0] ntest_state = 0;
     localparam nt_idle = 0, nt_loadnyb = 3'b001, nt_waitend = 3'b010, nt_lockup = 3'b111;
-    
 
+    always @(posedge clk) begin
+        //SEE below for button stuff.
+        //assume that if button has been pressed, we're not in wb_reset.
+        if(button_has_been_pressed) begin
+
+            //downcount data reg just to have it have something to do
+            lcd_data_reg <= lcd_data_reg - 1;
+
+            case (ntest_state)
+                nt_idle: begin
+                    //so... given we're not in reset, step on out.
+                    ntest_state <= nt_loadnyb;
+                end
+
+                nt_loadnyb: begin
+                    lcd_data_reg <= 4'b1101;       // distinctive test value
+                    nybsen_strobe <= 1;
+                    ntest_state <= nt_waitend;
+                end
+
+                nt_waitend: begin
+                    nybsen_strobe <= 0;
+                    if(!nybsen_busy) begin
+                        ntest_state = nt_lockup;
+                    end
+                end
+
+                nt_lockup: begin
+                    //nothing happens HERE. used to go to idle, which gave us infinity timer calls, so if you want that, etc.
+                    //lcd_rs_reg <= 0;         //using rs to track when this state machine is active
+                    //st_start_stb <= 0;
+                    ntest_state <= nt_lockup;   //do I need to do anything?
+                end
+
+                default: begin
+                    ntest_state <= nt_lockup;
+                    nybsen_strobe <= 0;
+                    lcd_data_reg <= 0;
+                end
+
+            endcase
+
+            /* this was the first LA test
+            //meaningless but logic-analyzer-capturable signals that will start when button is pressed,
+            //see below.
+            lcd_e_reg <= ~lcd_e_reg;
+            lcd_rs_reg <= lcd_data_reg[1];
+            lcd_data_reg <= lcd_data_reg + 1;
+            */
+        end else begin
+            //button has NOT been pressed, which amounts to reset.
+            ntest_state <= nt_idle;
+            nybsen_strobe <= 0;
+            lcd_data_reg <= 0;
+        end
+    end     //state machine always
 
     // TESTER OF ALL LEDs =======================================================================================
 	// Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
@@ -283,7 +338,7 @@ module hd44780_top(
     //*****************************************************************************************
     //NOW STUFF FOR TESTING THE LCD PINS!
     //WHICH IS THE ENTIRE POINT OF ALL OF THIS!
-    //reg lcd_rs_reg = 0;
+    reg lcd_rs_reg = 0;
     reg lcd_e_reg = 0;
     reg [7:0] lcd_byte_reg = 8'b0000_0000;
     //*****************************************************************************************
@@ -291,15 +346,15 @@ module hd44780_top(
     reg bytesen_strobe = 0;
     wire lcd_busy;
 
-    module hd44780_bytesender bytesy(
+    hd44780_bytesender bytesy(
         .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
         .CLK_I(wb_clk),
         .STB_I(bytesen_strobe),                    //to let this module know rs and lcd_data are ready and to do its thing.
         .i_rs(lcd_rs_reg),                     //register select - command or data, will go to LCD RS pin
-        .i_lcd_data(i_lcd_byte),     // byte to send to LCD, one nybble at a time
+        .i_lcd_data(lcd_byte_reg),     // byte to send to LCD, one nybble at a time
         .busy(lcd_busy),
         .o_rs(lcd_rs),				//LCD register select
-        .o_lcd_data(o_lcd_data),   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+        .o_lcd_data(lcd_data),   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
         .o_e(lcd_e)                 //LCD enable pin
     );
 

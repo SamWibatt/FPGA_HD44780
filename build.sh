@@ -3,7 +3,7 @@
 #echo "Usage 1:"
 #echo "./build.sh (hw target)"
 #echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesend\", \"ctrlr\" for the different tests we have - "
+#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ctrlr\" for the different tests we have - "
 #echo "state timer, nybble sender, byte sender, controller."
 #echo "Usage 2:"
 #echo "./build.sh sim [sim target]"
@@ -21,7 +21,7 @@ then
 	echo "Usage 1:"
 	echo "./build.sh (hw target)"
 	echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesend\", \"ctrlr\" for the different tests we have - "
+	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ctrlr\" for the different tests we have - "
 	echo "state timer, nybble sender, byte sender, controller."
 	echo "Usage 2:"
 	echo "./build.sh sim [sim target]"
@@ -78,7 +78,7 @@ then
 	then
 		echo building nybsen top
 		YS_BUILD_TARGET="LCD_TARGET_NYBSEN"
-	elif [ "$target" == "bytesend" ]
+	elif [ "$target" == "bytesen" ]
 	then
 		echo buidling bytesend top
 		YS_BUILD_TARGET="LCD_TARGET_BYTESEN"
@@ -130,7 +130,7 @@ then
 	# so, I've put the proj-spec stuff in the first line, and can probably pull it out into a variable.
 	# DO THAT!
 	# on the plus side, the ys file had to be maintained separately too.
-	yosys -p "read_verilog hd44780_timer.v; read_verilog hd44780_nybsen.v; read_verilog hd44780_controller.v; read_verilog hd44780_syscon.v; \
+	yosys -p "read_verilog hd44780_timer.v; read_verilog hd44780_nybsen.v; read_verilog hd44780_bytesender.v; read_verilog hd44780_syscon.v; \
 		read_verilog -D$YS_BUILD_TARGET ${proj}_top.v; \
 		synth_ice40 -top ${proj}_top; write_json ${proj}.json"
 	#used to just be yosys "$proj".ys
@@ -187,10 +187,10 @@ else
 		vcd2fst hd44780_nybsen_tb.vcd hd44780_nybsen_tb.fst
 		rm -f hd44780_nybsen_tb.vcd
 		#gtkwave -o hd44780_nybsen_tb.fst &
-	elif [ "$target" == "bytesend" ]
+	elif [ "$target" == "bytesen" ]
 	then
 		# ASSUMES CONTROLLER DOES NOTHING BUT SEND A BYTE, a la goal 3
-		iverilog -D SIM_STEP -o hd44780_bytesend_tb.vvp hd44780_controller.v hd44780_nybsen.v hd44780_tb.v hd44780_syscon.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
+		iverilog -D SIM_STEP -o hd44780_bytesend_tb.vvp hd44780_bytesender.v hd44780_nybsen.v hd44780_bytesend_tb.v hd44780_syscon.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
 		# and so there is this kludge too
 		mv hd44780_tb.vcd hd44780_bytesend_tb.vcd
 		vvp hd44780_bytesend_tb.vvp  1>> sim_tb_out.txt 2>> sim_tb_err.txt
