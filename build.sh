@@ -84,9 +84,8 @@ then
 		YS_BUILD_TARGET="LCD_TARGET_BYTESEN"
 	elif [ "$target" == "ctrlr" ]
 	then
-		echo ctrlr placeholder - build not implemented yet!
-        #echo but I will drop thru
-		exit 1
+		echo building ctrlr top
+		YS_BUILD_TARGET="LCD_TARGET_CONTROLLER"
 	else
 		echo "UNRECOGNIZED TARGET ${target}"
 		exit 1
@@ -131,7 +130,7 @@ then
 	# DO THAT!
 	# on the plus side, the ys file had to be maintained separately too.
 	yosys -p "read_verilog hd44780_timer.v; read_verilog hd44780_nybsen.v; read_verilog hd44780_bytesender.v; read_verilog hd44780_syscon.v; \
-		read_verilog -D$YS_BUILD_TARGET ${proj}_top.v; \
+		read_verilog hd44780_ram.v; read_verilog hd44780_controller.v; read_verilog -D$YS_BUILD_TARGET ${proj}_top.v; \
 		synth_ice40 -top ${proj}_top; write_json ${proj}.json"
 	#used to just be yosys "$proj".ys
 
@@ -198,8 +197,13 @@ else
 		#gtkwave -o hd44780_tb.vcd &
 	elif [ "$target" == "ctrlr" ]
 	then
-		echo ctrlr placeholder - test not implemented yet!
-		exit 1
+		iverilog -D SIM_STEP -o hd44780_controller_tb.vvp hd44780_controller_tb.v hd44780_controller.v hd44780_ram.v hd44780_timer.v hd44780_bytesender.v hd44780_nybsen.v hd44780_syscon.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
+		vvp hd44780_controller_tb.vvp  1>> sim_tb_out.txt 2>> sim_tb_err.txt
+		#gtkwave -o does optimization of vcd to FST format, good for the big sims
+		# or just do it here
+		vcd2fst hd44780_controller_tb.vcd hd44780_controller_tb.fst
+		rm -f hd44780_controller_tb.vcd
+		#gtkwave -o hd44780_tb.vcd &
 	else
 		echo "UNRECOGNIZED TARGET ${target}"
 		exit 1
