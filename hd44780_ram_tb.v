@@ -27,7 +27,7 @@ module hd44780_ram_tb;
 
     //------------------------------------------------------------------------------------------
     //parameter address_bits = 9, data_bits = 8;      // try a 512x8
-    parameter address_bits = 8, data_bits = 16;      // try a 512x8
+    parameter address_bits = 8, data_bits = 16;      // try a 256x16
 
     reg [address_bits-1:0] start_addr = 0;
     reg [address_bits-1:0] addr_w_reg = 0;
@@ -60,6 +60,12 @@ module hd44780_ram_tb;
     end
 
     initial begin
+        //let's load some stuff in the memory! per https://timetoexplore.net/blog/initialize-memory-in-verilog
+        //and see if we can reach into the ram to do it from here
+        //tiny mem file $readmemh("settings/testmem.mem", rammy.mem);
+        $readmemh("settings/echomem.mem", rammy.mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+        
+
         //#5 tick, 10 ticks/syclc
         //how to communicate data address width? I guess just use 8 bits and swh
         #90 addr_w_reg = 8'b0110_1101;            //distinctive nybbles
