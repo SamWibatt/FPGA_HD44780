@@ -26,7 +26,8 @@ module hd44780_ram_tb;
     always #5 clk = (clk === 1'b0);
 
     //------------------------------------------------------------------------------------------
-    parameter address_bits = 9, data_bits = 8;      // try a 512x8
+    //parameter address_bits = 9, data_bits = 8;      // try a 512x8
+    parameter address_bits = 8, data_bits = 16;      // try a 512x8
 
     reg [address_bits-1:0] start_addr = 0;
     reg [address_bits-1:0] addr_w_reg = 0;

@@ -1,0 +1,30 @@
+[*]
+[*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
+[*] Sun Sep 29 20:26:14 2019
+[*]
+[dumpfile] "/home/sean/dev/FPGA/FPGA_HD44780/hd44780_ram_tb.fst"
+[dumpfile_mtime] "Sun Sep 29 20:24:57 2019"
+[dumpfile_size] 755
+[savefile] "/home/sean/dev/FPGA/FPGA_HD44780/settings/ram_test.gtkw"
+[timestart] 0
+[size] 1331 713
+[pos] -1 -1
+*-7.347223 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] hd44780_ram_tb.
+[sst_width] 223
+[signals_width] 110
+[sst_expanded] 1
+[sst_vpaned_height] 192
+@28
+hd44780_ram_tb.rammy.wclk
+@22
+hd44780_ram_tb.rammy.waddr[7:0]
+hd44780_ram_tb.rammy.din[15:0]
+@28
+hd44780_ram_tb.rammy.write_en
+hd44780_ram_tb.rammy.rclk
+@22
+hd44780_ram_tb.rammy.raddr[7:0]
+hd44780_ram_tb.rammy.dout[15:0]
+[pattern_trace] 1
+[pattern_trace] 0
