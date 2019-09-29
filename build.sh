@@ -3,8 +3,8 @@
 #echo "Usage 1:"
 #echo "./build.sh (hw target)"
 #echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ctrlr\" for the different tests we have - "
-#echo "state timer, nybble sender, byte sender, controller."
+#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\", \"ctrlr\" for the different tests we have - "
+#echo "state timer, nybble sender, byte sender, ram module, controller."
 #echo "Usage 2:"
 #echo "./build.sh sim [sim target]"
 #echo "where \"sim\" is a literal. Sim target defaults to ctrlr if not given."
@@ -21,8 +21,8 @@ then
 	echo "Usage 1:"
 	echo "./build.sh (hw target)"
 	echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ctrlr\" for the different tests we have - "
-	echo "state timer, nybble sender, byte sender, controller."
+	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\",\"ctrlr\" for the different tests we have - "
+	echo "state timer, nybble sender, byte sender, ram module, controller."
 	echo "Usage 2:"
 	echo "./build.sh sim [sim target]"
 	echo "where \"sim\" is a literal. Sim target defaults to ctrlr if not given."
@@ -39,7 +39,7 @@ then
 	# ****************************** HAVE TO FIGURE THIS OUT!
 	if [ "$1" != "" ]
 	then
-		target=$1
+		target=$1		# well, we'd have seen usage, so this is unreachable.
 	else
 		target="ctrlr"
 	fi
@@ -82,6 +82,10 @@ then
 	then
 		echo buidling bytesend top
 		YS_BUILD_TARGET="LCD_TARGET_BYTESEN"
+	elif [ "$target" == "ram" ]
+	then
+		echo building ctrlr top
+		YS_BUILD_TARGET="LCD_TARGET_RAM"
 	elif [ "$target" == "ctrlr" ]
 	then
 		echo building ctrlr top
@@ -194,6 +198,15 @@ else
 		# or just do it here
 		vcd2fst hd44780_bytesend_tb.vcd hd44780_bytesend_tb.fst
 		rm -f hd44780_bytesend_tb.vcd
+		#gtkwave -o hd44780_tb.vcd &
+	elif [ "$target" == "ram" ]
+	then
+		iverilog -D SIM_STEP -o hd44780_ram_tb.vvp hd44780_ram_tb.v hd44780_ram.v 1>> sim_tb_out.txt 2>> sim_tb_err.txt
+		vvp hd44780_ram_tb.vvp  1>> sim_tb_out.txt 2>> sim_tb_err.txt
+		#gtkwave -o does optimization of vcd to FST format, good for the big sims
+		# or just do it here
+		vcd2fst hd44780_ram_tb.vcd hd44780_ram_tb.fst
+		rm -f hd44780_ram_tb.vcd
 		#gtkwave -o hd44780_tb.vcd &
 	elif [ "$target" == "ctrlr" ]
 	then
