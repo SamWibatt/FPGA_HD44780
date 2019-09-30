@@ -591,7 +591,18 @@ module hd44780_top(
 
 
     // END TESTER OF ALL LEDs ===================================================================================
+`elsif LCD_TARGET_CONTROLLER
 
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    //HEY PUT STUFF IN HERE
+    initial begin
+        $display("HEY WRITE SOME KIND OF CONTROLLER TEST HERE!!!!!!!!!!!!!!!!!!!!!!!");
+    end
 `endif //LCD_TARGET_RAM - work out what else can be extracted
 
 
