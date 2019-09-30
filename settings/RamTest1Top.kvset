@@ -28,7 +28,7 @@
         <chnShowName4>Data 4</chnShowName4>
         <chnShowName5>Data 5</chnShowName5>
         <chnShowName6>Data 6</chnShowName6>
-        <chnShowName7>Data 7</chnShowName7>
+        <chnShowName7>logan_stb</chnShowName7>
         <chnShowName8>logan_stb</chnShowName8>
         <chnShowName9/>
         <chnShowName10/>
@@ -38,7 +38,7 @@
         <chnShowName14/>
         <chnShowName15/>
         <disAutoUpdate/>
-        <lastUpdate>2019-09-29_17:20:26</lastUpdate>
+        <lastUpdate>2019-09-29_19:52:07</lastUpdate>
         <zeroSmpCnt/>
         <ratioSasPix>0</ratioSasPix>
         <recentAnalyzers>libCAN.so,libI2C.so,libSPI.so,libUART.so</recentAnalyzers>
@@ -68,13 +68,14 @@
         </LA2016>
         <LA1010>
             <trgPosition/>
-            <chnTrig>0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0</chnTrig>
-            <chnEnable>1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0</chnEnable>
+            <chnTrig>0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0</chnTrig>
+            <chnEnable>1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0</chnEnable>
             <smpDepth/>
             <smpDepthIndex/>
             <smpFrequ>32000</smpFrequ>
             <smpFrequIndex>4</smpFrequIndex>
             <chnLevel/>
+            <chnVth/>
         </LA1010>
     </devices>
     <analyzers/>

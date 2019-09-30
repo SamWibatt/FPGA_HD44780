@@ -1,9 +1,9 @@
 # YAML comments!
 RData:
   type: wire
-  width: 8
+  width: 7  # see below re data 7
   vars:
-    - Data 7
+    #- Data 7  not available bc I'm too lazy to swap connectors on the logic analysizer.
     - Data 6
     - Data 5
     - Data 4
