@@ -1,0 +1,17 @@
+# YAML comments!
+RData:
+  type: wire
+  width: 8
+  vars:
+    - Data 7
+    - Data 6
+    - Data 5
+    - Data 4
+    - Data 3
+    - Data 2
+    - Data 1
+    - Data 0
+
+LA_Strobe:
+ vars:
+   - logan_stb
