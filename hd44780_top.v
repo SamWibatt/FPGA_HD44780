@@ -455,8 +455,144 @@ module hd44780_top(
     assign o_led3 = reg_led3;     //act low
 
     // END TESTER OF ALL LEDs ===================================================================================
+`elsif LCD_TARGET_RAM
 
-`endif //LCD_TARGET_BYTESEN - work out what else can be extracted
+    reg lcd_rs_reg = 0;
+    reg lcd_e_reg = 0;
+
+    parameter address_bits = 8, data_bits = 16;      // try a 256x16
+
+    reg [address_bits-1:0] start_addr = 0;
+    reg [address_bits-1:0] addr_w_reg = 0;
+    reg [address_bits-1:0] addr_r_reg = 0;
+    reg [data_bits-1:0] data_w_reg = 0;
+    reg [data_bits-1:0] data_r_reg = 0;
+    wire [data_bits-1:0] data_r_wire;
+    reg ram_wen = 0;        //write enable
+
+    hd44780_ram #(.addr_width(address_bits),.data_width(data_bits)) rammy(
+        .din(data_w_reg),
+        .write_en(ram_wen),
+        .waddr(addr_w_reg),
+        .wclk(clk),
+        .raddr(addr_r_reg),
+        .rclk(clk),
+        .dout(data_r_wire));
+
+    //we need this module to actually do SOMETHING
+    // little stately that loads up a byte and flings it on the sender and does the strobes and waits and wotnot
+    reg [2:0] rtest_state = 0;
+    localparam rt_idle = 0, rt_upwen = 3'b001, rt_downwen = 3'b010, rt_lockup = 3'b111;
+
+    //#90 addr_w_reg = 8'b0110_1101;            //distinctive nybbles
+    //data_w_reg = 8'b1010_0101;                //value to write to ram
+    //addr_r_reg = 8'b0110_1101;
+    //#10 ram_wen = 1;                                    // write enable should shovel it in on the next clock, yes?
+    //#170 ram_wen = 0;            //drop write_enable and see if it then reads
+
+    always @(posedge clk) begin
+
+        //SEE below for button stuff.
+        //assume that if button has been pressed, we're not in wb_reset.
+        if(button_has_been_pressed) begin
+            data_r_reg <= data_r_wire;      //as long as we're not in reset
+
+            case (rtest_state)
+                rt_idle: begin
+                    //so... given we're not in reset, step on out.
+                    rtest_state <= rt_upwen;
+                    addr_w_reg <= 8'b0110_1101;     // address to write to
+                    data_w_reg <= 8'b1010_0101;     // recognizable bit pattern
+                    addr_r_reg <= 8'b0110_1101;     // address to read from
+                end
+
+                rt_upwen: begin
+                    ram_wen <= 1;
+                    rtest_state <= rt_downwen;
+                end
+
+                rt_downwen: begin
+                    ram_wen <= 0;
+                    rtest_state <= rt_lockup;
+                end
+
+                rt_lockup: begin
+                    rtest_state <= rt_lockup;   //do I need to do anything?
+                end
+
+                default: begin
+                    rtest_state <= rt_lockup;
+                    ram_wen <= 0;
+                    addr_r_reg <= 0;
+                    addr_w_reg <= 0;
+                    data_r_reg <= 0;
+                end
+
+            endcase
+
+        end else begin
+            //button has NOT been pressed, which amounts to reset.
+            rtest_state <= rt_idle;
+            addr_r_reg <= 0;
+            addr_w_reg <= 0;
+            data_r_reg <= 0;
+            data_w_reg <= 0;
+            ram_wen <= 0;
+        end
+    end
+
+    //put some data out there - LCD data 0-3 will be data_r_reg 0..3, say, and alive led 0-3 are data_r_reg 4-7
+    //never mind that LED's are active low, we just want the values
+    assign lcd_data = { data_r_reg[3], data_r_reg[2], data_r_reg[1], data_r_reg[0]};      //hope order works
+    assign o_led0 = data_r_reg[4];     //act low
+    assign o_led1 = data_r_reg[5];     //act low
+    assign o_led2 = data_r_reg[6];     //act low
+    assign o_led3 = data_r_reg[7];     //act low
+
+    //then we still have these wires poking out somewhere
+    assign lcd_rs = lcd_rs_reg;
+    assign lcd_e = lcd_e_reg;
+
+    // can you use this to synthesize initial contents?
+    initial begin
+        //let's load some stuff in the memory! per https://timetoexplore.net/blog/initialize-memory-in-verilog
+        //and see if we can reach into the ram to do it from here
+        //tiny mem file $readmemh("settings/testmem.mem", rammy.mem);
+        //drat, iverilog is ok with this but yosys isn't
+        //Warning: wire '\btest_state' is assigned in a block at hd44780_top.v:542.
+        //Warning: wire '\bytesen_strobe' is assigned in a block at hd44780_top.v:543.
+        //Warning: wire '\lcd_byte_reg' is assigned in a block at hd44780_top.v:544.
+        //hd44780_top.v:566: ERROR: Failed to evaluate system function `\$readmemh' with non-memory 2nd argument.
+        //outcomment for now
+        `ifdef SIM_STEP
+            $readmemh("settings/echomem.mem", rammy.mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+            //turns out, per https://github.com/YosysHQ/yosys/issues/344, hierarchical names only work in simulation.
+            //Clifford Wolf says:
+            //"In synthesizable verilog hierarchical references are forbidden. No synthesis tool would (or should) accept this code."
+            //so...he says defines that govern filenames are the usual way to parameterize preloading with memory - ?
+            //let me see what happens if I load echnomem in the ram module itself.
+
+        `endif
+    end
+
+    // TESTER OF ALL LEDs =======================================================================================
+    // Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
+    parameter GREENBLINKBITS = `H4_TIMER_BITS + 2;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
+                                            // and hey why not define that in top or tb instead of in the controller or even on command line - ok
+                                            // now the define above is wrapped in `ifndef G_SYSFREQ so there you go
+    reg[GREENBLINKBITS-1:0] greenblinkct = 0;
+    always @(posedge clk) begin
+        greenblinkct <= greenblinkct + 1;
+    end
+
+    assign led_g_outwire = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this - this line causes multiple driver problem
+    assign led_b_outwire = greenblinkct[GREENBLINKBITS-1];
+    assign led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
+
+
+    // END TESTER OF ALL LEDs ===================================================================================
+
+`endif //LCD_TARGET_RAM - work out what else can be extracted
 
 
 
