@@ -52,38 +52,55 @@ so we can have multiple "scripts" in a ram block and pass the controller:
 - data address lines for the ram that caller knows
 - number of script lines to run? Or should there be a script code for halt?
 */
+/* from goal 4 page:
+*wishbone-type interface: clk, rst, stb
+*busy and error lines
+*data address lines (inputs to a mux somewhere, may not need one for this test, but figure it out)
+-LATER: mux selector lines (width set with a define, I reckon)
+*data start address
+    - HEY what if special start addrs did things like all-1s means just send the
+      rs bit and byte, 9 bits in all at the bottom of read_addr_lines to the LCD with
+      a standard delay of some sort, for calls to it that don't need to use a RAM or something
+    - prolly better to have a separate module for that, or even just have a byte sender handy
+*data from RAM lines (output from muxen somewhere) 16 bits
+-TABLED: number of entries to read? Or should that be part of the ram list? like there's a stop command
+    ram entries include data byte, r/s bit, 3 bit index into list of delays, 1 bit for single nybble send (see goal 4 9/26), ???
+    Let's do it with a command, so no need for ports
+*lcd out 4 bits
+*lcd rs and e
+*/
+
+
 
 module hd44780_controller(
     input wire RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
     input wire CLK_I,
     input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
-    /*
-    input wire i_rs,                     //register select - command or data, will go to LCD RS pin
-    //input wire[7:0] i_lcd_addr    //is there an address we have to send? looks like not, it's cursor-based.
-    input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
-    */
-    input wire[7:0] i_start_addr,          //address from which to start reading control words in the given ram.
-                                            //DANGER: hardcoded width, should be ram_dwidth-1:0
+
+    //parameters related to RAMlet that contains instructions
+    output wire[ram_awidth-1:0] o_read_addr_lines,    //wires that lead to input ports of a ram or a mux of several accessors to ram
+    input wire[ram_awidth-1:0] i_start_addr,          //address from which to start reading control words in the given ram.
+    input wire[ram_dwidth-1:0] i_read_data_lines,     //data returned from ram
+
+    //might be part of wishbone too, but these are for communicating with caller
     output wire busy,
-	output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
-    /*
-    output wire o_rs,
+    output wire error,
+
+    //actual chip pins hereafter!
+    //out to LCD module
     output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
                                     //see above in nybble sender
-    output wire o_e                 //LCD enable pin
-    */
+    output wire o_rs,
+    output wire o_e,                //LCD enable pin
+
+    //alive_led, not sure we need, but why not
+    output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
 );
 
-	// Super simple "I'm Alive" blinky on one of the external LEDs.
-	parameter GREENBLINKBITS = `H4_TIMER_BITS + 4;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
-											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
-											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
-	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
-	always @(posedge CLK_I) begin
-		greenblinkct <= greenblinkct + 1;
-	end
+    //for which we need a ramlet; here the dual ported one from TN1250, tweaked to be 256x16
+    parameter ram_dwidth = 16;
+    parameter ram_awidth = 8;
 
-	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
 
     // DEBUG ===============================================================================
@@ -113,23 +130,18 @@ module hd44780_controller(
     **************************************************************************************
     **************************************************************************************
     so ok now for what it really does
-
+    ONLY NOW CONTROLLER DOES NOT CONTAIN THE RAM, TOP DOES!
     **************************************************************************************
     **************************************************************************************
     **************************************************************************************
-    */
 
-    //for which we need a ramlet; here the dual ported one from TN1250, tweaked to be 256x16
-    parameter ram_dwidth = 16;
-    parameter ram_awidth = 8;
-
+    //here is our little ram module setup, ram_dwidth and ram_awidth defined above
     reg [ram_dwidth-1:0] ram_data_reg = 0;
     reg [ram_awidth-1:0] ram_rdaddr_reg = 0;
     reg [ram_awidth-1:0] ram_wraddr_reg = 0;
     reg ram_wen = 0;            //write enable
     wire [ram_dwidth-1:0] ram_data_out;
 
-    reg cont_busy = 0;
 
     //REPLACE SETTINGS/TESTMEM.MEM with something meaningful to this, like the HD44780 init data
     hd44780_ram #(.initfile("settings/testmem.mem"),.data_width(ram_dwidth),.addr_width(ram_awidth)) rammy (
@@ -140,9 +152,8 @@ module hd44780_controller(
         .raddr(ram_rdaddr_reg),
         .rclk(CLK_I),
         .dout(ram_data_out));
+    */
 
-    localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_lockup = 3'b111;
-    reg[2:0] ctrl_state = 3'b000;
 
     //so little state machine
     //****************************************************************************************
@@ -152,7 +163,7 @@ module hd44780_controller(
     //****************************************************************************************
     //****************************************************************************************
     //****************************************************************************************
-    //HEY THIS IS NOT FINISHED finish it 
+    // Now for actual controller state machine & wev
     //****************************************************************************************
     //****************************************************************************************
     //****************************************************************************************
@@ -160,27 +171,66 @@ module hd44780_controller(
     //****************************************************************************************
     //****************************************************************************************
     //****************************************************************************************
+    //output port vars
+    reg cont_busy = 0;
+    reg cont_error = 0;
+
+    //ram vars
+    //output wire[ram_awidth-1:0] o_read_addr_lines,    //wires that lead to input ports of a ram or a mux of several accessors to ram
+    reg[ram_awidth-1:0] read_addr_reg = 0;
+    //input wire[ram_awidth-1:0] i_start_addr,          //address from which to start reading control words in the given ram.
+    reg[ram_awidth-1:0] cur_addr_reg = 0;     //this acts like a current-addr / program counter, loaded at strobe from i_start_addr
+    //input wire[ram_dwidth-1:0] i_read_data_lines,     //data returned from ram
+    reg[ram_dwidth-1:0] read_data_reg = 0;      //these register i_read_data_lines in the fetch cycle
+
+    //lcd output vars
+    reg lcd_rs_reg = 0;
+    reg lcd_e_reg = 0;
+    reg [3:0] lcd_data_reg = 0;
+
+    //state vars
+    localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_lockup = 3'b111;
+    reg[2:0] ctrl_state = 3'b000;
+
     always @(posedge CLK_I) begin
         if(RST_I) begin
-            ram_data_reg <= 0;
-            ram_rdaddr_reg <= 0;
-            ram_wraddr_reg <= 0;
-            ram_wen <= 0;
-            ctrl_state <= 3'b000;
+            read_data_reg <= 0;
+            read_addr_reg <= 0;
+            cur_addr_reg <= 0;
+            ctrl_state <= cst_idle;
+            lcd_rs_reg <= 0;
+            lcd_e_reg <= 0;
+            lcd_data_reg <= 0;
             cont_busy <= 0;
+            cont_error <= 0;
         end else begin
             if(STB_I & ~cont_busy) begin
                 //got our strobe!
                 ctrl_state <= cst_waitst;
                 cont_busy <= 1;
+                cur_addr_reg <= i_start_addr;       //program counter into ram
+                read_addr_reg <= i_start_addr;      //might as well get started there ...?
             end else begin
-                ram_rdaddr_reg <= ram_rdaddr_reg + 1;
+                read_addr_reg <= read_addr_reg + 1;       //temp debug
                 //and here we have a state machine
             end
         end
     end
 
     assign busy = cont_busy;
+    assign error = cont_error;
+
+    //===================== BLINKY ===============================================================================================================================================================================================
+    // Super simple "I'm Alive" blinky on one of the external LEDs.
+	parameter GREENBLINKBITS = `H4_TIMER_BITS + 4;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
+											// and hey why not define that in top or tb instead of in the controller or even on command line - ok
+											// now the define above is wrapped in `ifndef G_SYSFREQ so there you go
+	reg[GREENBLINKBITS-1:0] greenblinkct = 0;
+	always @(posedge CLK_I) begin
+		greenblinkct <= greenblinkct + 1;
+	end
+
+	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
 
 
 endmodule
