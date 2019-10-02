@@ -219,6 +219,10 @@ module hd44780_controller(
 
     assign busy = cont_busy;
     assign error = cont_error;
+    assign o_lcd_data = lcd_data_reg;
+    assign o_rs = lcd_rs_reg;
+    assign o_e = lcd_e_reg;
+    assign o_read_addr_lines = read_addr_reg;
 
     //===================== BLINKY ===============================================================================================================================================================================================
     // Super simple "I'm Alive" blinky on one of the external LEDs.
