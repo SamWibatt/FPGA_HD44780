@@ -126,7 +126,7 @@ module hd44780_bytesender(
                     //wait for strobe to drop
                     if(~STB_I) begin
                         i_lcd_data_shadow <= i_lcd_data;    //save off input byte so changes on the input lines don't mess up nybbles asynchronously
-                        byts_state <= byts_state + 1;
+                        byts_state <= st_c_nyb1;
                     end
                 end
 
@@ -135,25 +135,25 @@ module hd44780_bytesender(
                     //do we send lower nybble first? if so, do this, otherwise swap with the other one
                     //nope, we send upper nyb first.
                     ns_nybbin <= {i_lcd_data_shadow[7],i_lcd_data_shadow[6],i_lcd_data_shadow[5],i_lcd_data_shadow[4]};
-                    byts_state <= byts_state + 1;
+                    byts_state <= st_c_stb1;
                 end
 
                 st_c_stb1: begin
                     //raise strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 1;
-                    byts_state <= byts_state + 1;
+                    byts_state <= st_c_dstb1;
                 end
 
                 st_c_dstb1: begin
                     //drop strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 0;
-                    byts_state <= byts_state + 1;
+                    byts_state <= st_c_nyb2;
                 end
 
                 st_c_nyb2: begin
                     //wait for busy to drop - MAY NEED A WAIT STATE ? nope seems to work
                     if(~ns_busy) begin
-                        byts_state <= byts_state +1;
+                        byts_state <= st_c_stb2;
                         //do we send upper nybble last? if so, do this, otherwise swap with the other one
                         //nope, it's last, so moved low nybble here
                         ns_nybbin <= {i_lcd_data_shadow[3],i_lcd_data_shadow[2],i_lcd_data_shadow[1],i_lcd_data_shadow[0]};
@@ -163,13 +163,13 @@ module hd44780_bytesender(
                 st_c_stb2: begin
                     //raise strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 1;
-                    byts_state <= byts_state + 1;
+                    byts_state <= st_c_dstb2;
                 end
 
                 st_c_dstb2: begin
                     //drop strobe - may not need all these states but can tighten up yes?
                     ns_ststrobe <= 0;
-                    byts_state <= 0;           //go back to idle. subsequent calls will wait for busy.
+                    byts_state <= st_c_idle;           //go back to idle. subsequent calls will wait for busy.
                 end
             endcase
         end

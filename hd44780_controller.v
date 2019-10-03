@@ -88,8 +88,7 @@ module hd44780_controller(
 
     //actual chip pins hereafter!
     //out to LCD module
-    output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
-                                    //see above in nybble sender
+    output wire [3:0] o_lcd_nybble,
     output wire o_rs,
     output wire o_e,                //LCD enable pin
 
@@ -154,6 +153,40 @@ module hd44780_controller(
         .dout(ram_data_out));
     */
 
+    //lcd output vars - don't think I need an e bc bytesender handles that
+    reg lcd_rs_reg = 0;
+    reg [7:0] lcd_byte_reg = 0;
+    wire bytesen_busy;
+
+    //here is the byte sender that the controller will use! and its support vars
+    reg bytesen_stb_reg = 0;
+    hd44780_bytesender bytesen(
+        .RST_I(RST_I), //input wire RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+        .CLK_I(CLK_I), //input wire CLK_I,
+        .STB_I(bytesen_stb_reg), //input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
+        .i_rs(lcd_rs_reg), //input wire i_rs,                     //register select - command or data, will go to LCD RS pin
+        .i_lcd_data(lcd_byte_reg), //input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
+        .busy(bytesen_busy), //output wire busy,
+    	//.alive_led(led_outwire), //output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
+        .o_rs(o_rs), //output wire o_rs,
+        .o_lcd_data(o_lcd_nybble), //output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
+                                        //see above in nybble sender
+        .o_e(o_e) //output wire o_e                 //LCD enable pin
+        );
+
+    //THEN a timer for the delays between sends
+    reg[`H4_TIMER_BITS-1:0] time_len = 0;
+    reg timer_stb_reg = 0;                       //start strobe
+    //wire ststrobe_wire = ststrobe;        //try this assign to see if start strobe will work with it
+    wire timer_end_stb;
+    hd44780_state_timer stimey(
+        .RST_I(RST_I),
+        .CLK_I(CLK_I),
+        .DAT_I(time_len),
+        .start_strobe(timer_stb_reg), //(ststrobe_wire),       //this was ststrobe, and we weren't seeing the strobe in controller
+        .end_strobe(timer_end_stb)
+        );
+
 
     //so little state machine
     //****************************************************************************************
@@ -183,10 +216,6 @@ module hd44780_controller(
     //input wire[ram_dwidth-1:0] i_read_data_lines,     //data returned from ram
     reg[ram_dwidth-1:0] read_data_reg = 0;      //these register i_read_data_lines in the fetch cycle
 
-    //lcd output vars
-    reg lcd_rs_reg = 0;
-    reg lcd_e_reg = 0;
-    reg [3:0] lcd_data_reg = 0;
 
     //state vars
     localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_lockup = 3'b111;
@@ -199,8 +228,7 @@ module hd44780_controller(
             cur_addr_reg <= 0;
             ctrl_state <= cst_idle;
             lcd_rs_reg <= 0;
-            lcd_e_reg <= 0;
-            lcd_data_reg <= 0;
+            lcd_byte_reg <= 0;
             cont_busy <= 0;
             cont_error <= 0;
         end else begin
@@ -219,10 +247,12 @@ module hd44780_controller(
 
     assign busy = cont_busy;
     assign error = cont_error;
-    assign o_lcd_data = lcd_data_reg;
-    assign o_rs = lcd_rs_reg;
-    assign o_e = lcd_e_reg;
     assign o_read_addr_lines = read_addr_reg;
+
+    //these are handled by the bytesender
+    //assign o_lcd_data = lcd_data_reg;
+    //assign o_rs = lcd_rs_reg;
+    //assign o_e = lcd_e_reg;
 
     //===================== BLINKY ===============================================================================================================================================================================================
     // Super simple "I'm Alive" blinky on one of the external LEDs.
