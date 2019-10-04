@@ -1,19 +1,6 @@
 /*
 	hd44780 controller
 
-    a bit different from my previous projects' controllers; this is just the LCD driver.
-    top and syscon handle the top-level stuff.
-
-
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-    ************************************************************** CURRENTLY THE SAME AS hd44780_bytesender! FIX!
-
-
 */
 `default_nettype	none
 
@@ -218,7 +205,7 @@ module hd44780_controller(
 
 
     //state vars
-    localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_lockup = 3'b111;
+    localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_fetchword = 3'b010;
     reg[2:0] ctrl_state = 3'b000;
 
     always @(posedge CLK_I) begin
@@ -241,6 +228,41 @@ module hd44780_controller(
             end else begin
                 read_addr_reg <= read_addr_reg + 1;       //temp debug
                 //and here we have a state machine
+				case(ctrl_state)
+					cst_idle: begin
+						cont_busy <= 0;
+					end
+					
+					cst_waitst: begin
+						//the busy flag is raised by the strobe block above.
+						//wait for strobe to drop
+						if(~STB_I) begin
+							//now time to cue up the address into RAM and 
+							//let us assume that the RAM has settled, isn't being written to right where we're reading from. So let us load up the next address and
+							//advance it?
+							read_addr_reg <= cur_addr_reg;
+							cur_addr_reg <= cur_addr_reg + 1;
+							ctrl_state <= cst_fetchword;
+						end
+					end
+					
+					cst_fetchword: begin
+						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
+						read_data_reg <= i_read_data_lines;
+						//now what can we do to parse this?
+						//bits 7-0: LCD data byte
+						//bit 8: 
+						********************* LEFT OFF HERE
+					end
+					
+					//do we need a lockup? Since idle is truly idle in this FSM, I don't think so.
+					//cst_lockup: begin
+					//end
+					
+					default:begin							//default, always have one, avoid implied latches
+						ctrl_state <= cst_idle;           	//go back to idle. subsequent calls will wait for busy.
+					end
+				endcase
             end
         end
     end
@@ -248,11 +270,6 @@ module hd44780_controller(
     assign busy = cont_busy;
     assign error = cont_error;
     assign o_read_addr_lines = read_addr_reg;
-
-    //these are handled by the bytesender
-    //assign o_lcd_data = lcd_data_reg;
-    //assign o_rs = lcd_rs_reg;
-    //assign o_e = lcd_e_reg;
 
     //===================== BLINKY ===============================================================================================================================================================================================
     // Super simple "I'm Alive" blinky on one of the external LEDs.

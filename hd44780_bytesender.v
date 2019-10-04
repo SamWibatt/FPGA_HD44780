@@ -110,7 +110,7 @@ module hd44780_bytesender(
             //strobe came along while we're not busy and nybble sender isn't either! let's get rolling
             byts_busy_reg <= 1;
 			byts_rs_reg <= i_rs;		//synchronize RS line
-            byts_state <= 3'b001; //bump out of idle
+            byts_state <= st_c_waitstb; //bump out of idle
         end else begin
             // load nybble, pulse strobe, wait for not busy (and can load next nybble in the meantime!)
             // or maybe not, depending on how the nybble is handled.
@@ -171,6 +171,10 @@ module hd44780_bytesender(
                     ns_ststrobe <= 0;
                     byts_state <= st_c_idle;           //go back to idle. subsequent calls will wait for busy.
                 end
+				
+				default: begin							//default, always have one, avoid implied latches
+                    byts_state <= st_c_idle;           //go back to idle. subsequent calls will wait for busy.
+				end
             endcase
         end
     end
