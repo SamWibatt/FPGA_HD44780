@@ -143,6 +143,7 @@ module hd44780_controller(
     //lcd output vars - don't think I need an e bc bytesender handles that
     reg lcd_rs_reg = 0;
     reg [7:0] lcd_byte_reg = 0;
+    reg single_nybble = 0;              //flag for whether this command sends 1 nybble or 2
     wire bytesen_busy;
 
     //here is the byte sender that the controller will use! and its support vars
@@ -205,8 +206,10 @@ module hd44780_controller(
 
 
     //state vars
-    localparam cst_idle = 3'b000, cst_waitst = 3'b001, cst_fetchword = 3'b010;
-    reg[2:0] ctrl_state = 3'b000;
+    localparam cst_idle = 4'b0000, cst_waitst = 4'b0001, cst_fetchword = 4'b0010, cst_sendbyte = 4'b0011,
+        cst_sb_drop = 4'b0100, cst_sb_wait = 4'b0101, cst_tm_drop = 4'b0110, cst_tm_wait = 4'b0111,
+        cst_error = 4'b1111;
+    reg[3:0] ctrl_state = 4'b0000;
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
@@ -216,6 +219,7 @@ module hd44780_controller(
             ctrl_state <= cst_idle;
             lcd_rs_reg <= 0;
             lcd_byte_reg <= 0;
+            single_nybble <= 0;
             cont_busy <= 0;
             cont_error <= 0;
         end else begin
@@ -232,12 +236,12 @@ module hd44780_controller(
 					cst_idle: begin
 						cont_busy <= 0;
 					end
-					
+
 					cst_waitst: begin
 						//the busy flag is raised by the strobe block above.
 						//wait for strobe to drop
 						if(~STB_I) begin
-							//now time to cue up the address into RAM and 
+							//now time to cue up the address into RAM and
 							//let us assume that the RAM has settled, isn't being written to right where we're reading from. So let us load up the next address and
 							//advance it?
 							read_addr_reg <= cur_addr_reg;
@@ -245,22 +249,116 @@ module hd44780_controller(
 							ctrl_state <= cst_fetchword;
 						end
 					end
-					
+
 					cst_fetchword: begin
 						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
 						read_data_reg <= i_read_data_lines;
 						//now what can we do to parse this?
 						//bits 7-0: LCD data byte
-						//bit 8: 
-						********************* LEFT OFF HERE
+						//bit 8: RS
+                        //bit 9: single nybble flag, 1 = send only lower nybble
+                        //bits 10-12: time delay code, 0 = no delay
+                        //bits 13-15: reserved
+                        //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
+                        lcd_byte_reg <= read_data_reg[7:0];         //is this the right syntax?
+                        lcd_rs_reg <= read_data_reg[8];
+                        //single_nybble <= read_data_reg[9];        //don't really need to register this
+                        //can I nest a case for the time code?
+                        case (read_data_reg[12:10])
+                            //maybe should make localparams for these? Defines probably even better.
+                            //order by length of time, why not.
+                            3'b000: time_len <= 0;
+                            3'b001: time_len <= `H4_DELAY_53US;
+                            3'b010: time_len <= `H4_DELAY_100US;
+                            3'b011: time_len <= `H4_DELAY_3MS;
+                            3'b100: time_len <= `H4_DELAY_4P1MS;
+                            3'b101: time_len <= `H4_DELAY_100MS;
+                            default: begin                 //should this generate an error? yeah, let's do that
+                                cont_busy <= 0;
+                                cont_error <= 1;
+                                ctrl_state <= cst_error;
+                            end
+                        endcase
+                        //reserved bits should currently be 0 or throw an error.
+                        if(|read_data_reg[15:13]) begin
+                            cont_busy <= 0;
+                            cont_error <= 1;
+                            ctrl_state <= cst_error;
+                        end
+
+                        //HERE we hinge on single nybble send ... how do we do this? FOr the moment, error out
+                        if(read_data_reg[9]) begin
+                            ctrl_state <= cst_sendbyte;
+                        end else begin
+                            //TEMP!!! SINGLE NYBBLE IS NOT REALLY AN ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
+                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
+                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
+                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
+                            cont_busy <= 0;
+                            cont_error <= 1;
+                            ctrl_state <= cst_error;
+                        end
 					end
-					
+
+                    cst_sendbyte: begin
+                        //right so now all we should need to do is strobe the byte sender, yes?
+                        bytesen_stb_reg <= 1;
+                        ctrl_state <= cst_sb_drop;
+                    end
+
+                    cst_sb_drop: begin
+                        bytesen_stb_reg <= 0;
+                        ctrl_state <= cst_sb_wait;
+                    end
+
+                    cst_sb_wait: begin
+                        //wait for bytesen_busy to drop
+                        if(~bytesen_busy) begin
+                            //here, if we have a zero delay, just skip past the delay part
+                            if(time_len == 0) begin
+                                //hey, I guess we're done!
+                                cont_busy <= 0;
+                                ctrl_state <= cst_idle;
+                            end else begin
+                                //strobe the timer
+                                timer_stb_reg <= 1;
+                                ctrl_state <= cst_tm_drop;
+                            end
+                        end
+                    end
+
+                    cst_tm_drop: begin
+                        timer_stb_reg <= 1;
+                        ctrl_state <= cst_tm_wait;
+                    end
+
+                    cst_tm_wait: begin
+                        if(timer_end_stb) begin
+                            //hey, I guess we're done!
+                            cont_busy <= 0;
+                            ctrl_state <= cst_idle;
+                        end
+                    end
+
+
+                    // ------------------------
+
 					//do we need a lockup? Since idle is truly idle in this FSM, I don't think so.
 					//cst_lockup: begin
 					//end
-					
-					default:begin							//default, always have one, avoid implied latches
-						ctrl_state <= cst_idle;           	//go back to idle. subsequent calls will wait for busy.
+                    //We do need an error state, which for now I will implement as a lockup.
+                    cst_error: begin
+                        cont_error <= 1;            //preceding state should have set, but let's be sure
+                        ctrl_state <= cst_error;
+                        //TODO: FIGURE OUT HOW TO RECOVER FROM AN ERROR! one hopes we haven't sent anything to the LCD
+                        //yet, or it may be in an awkward state such as having received one nybble and not the other.
+                    end
+
+					default:begin							//default, always have one, avoid implied latches - throw error
+                        cont_busy <= 0;
+                        cont_error <= 1;
+                        ctrl_state <= cst_error;
 					end
 				endcase
             end
