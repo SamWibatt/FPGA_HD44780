@@ -25,10 +25,8 @@ module hd44780_ram (din, write_en, waddr, wclk, raddr, rclk, dout);
     end
 
     //test: will yosys let you preload a file here?
-    `ifndef SIM_STEP
     initial begin
-    //see https://github.com/YosysHQ/yosys/issues/333
-    $readmemh(initfile, mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+        //see https://github.com/YosysHQ/yosys/issues/333
+        $readmemh(initfile, mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
     end
-    `endif
 endmodule

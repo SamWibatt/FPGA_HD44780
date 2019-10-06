@@ -470,7 +470,7 @@ module hd44780_top(
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    hd44780_ram #(.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -553,7 +553,8 @@ module hd44780_top(
     assign lcd_rs = lcd_rs_reg;
     assign lcd_e = lcd_e_reg;
 
-    // can you use this to synthesize initial contents?
+    // can you use this to synthesize initial contents? Yes, in simulation. not in real implementation.
+    /*
     initial begin
         //let's load some stuff in the memory! per https://timetoexplore.net/blog/initialize-memory-in-verilog
         //and see if we can reach into the ram to do it from here
@@ -565,15 +566,16 @@ module hd44780_top(
         //hd44780_top.v:566: ERROR: Failed to evaluate system function `\$readmemh' with non-memory 2nd argument.
         //outcomment for now
         `ifdef SIM_STEP
-            $readmemh("settings/echomem.mem", rammy.mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+            //$readmemh("settings/echomem.mem", rammy.mem); 1      //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
             //turns out, per https://github.com/YosysHQ/yosys/issues/344, hierarchical names only work in simulation.
             //Clifford Wolf says:
             //"In synthesizable verilog hierarchical references are forbidden. No synthesis tool would (or should) accept this code."
             //so...he says defines that govern filenames are the usual way to parameterize preloading with memory - ?
             //let me see what happens if I load echnomem in the ram module itself.
-
+            //that works, and I made the init file a parameter.
         `endif
     end
+    */
 
     // TESTER OF ALL LEDs =======================================================================================
     // Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
@@ -593,48 +595,29 @@ module hd44780_top(
     // END TESTER OF ALL LEDs ===================================================================================
 `elsif LCD_TARGET_CONTROLLER
 
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    //HEY PUT STUFF IN HERE
-    initial begin
-        $display("HEY WRITE SOME KIND OF CONTROLLER TEST HERE!!!!!!!!!!!!!!!!!!!!!!!");
-    end
-`endif //LCD_TARGET_RAM - work out what else can be extracted
+    //we need a ram and a controller. Here is the ram.
+    parameter address_bits = 8, data_bits = 16;      // try a 256x16
 
+    reg [address_bits-1:0] start_addr = 0;
+    reg [address_bits-1:0] addr_w_reg = 0;
+    reg [address_bits-1:0] addr_r_reg = 0;
+    reg [data_bits-1:0] data_w_reg = 0;
+    reg [data_bits-1:0] data_r_reg = 0;
+    wire [data_bits-1:0] data_r_wire;
+    reg ram_wen = 0;        //write enable
 
+    //********* TODO will want to load up a different mem file once I get it specified
+    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+        .din(data_w_reg),
+        .write_en(ram_wen),
+        .waddr(addr_w_reg),
+        .wclk(clk),
+        .raddr(addr_r_reg),
+        .rclk(clk),
+        .dout(data_r_wire));
 
+    //******** TODO then we need a controller, soon come
 
+`endif //LCD_TARGET_CONTROLLER - work out what else can be extracted
 
-
-	/* LATER when we know the blinky works
-    //we DO also want a wishbone syscon and a controller!
-    wire wb_reset;
-    wire wb_clk;
-    hd44780_syscon syscon(
-        .i_clk(clk),
-        .RST_O(wb_reset),
-        .CLK_O(wb_clk)
-        );
-
-    reg [`H4_TIMER_BITS-1:0] st_dat = 0;
-    reg st_start_stb = 0;
-    wire st_end_stb;
-    hd44780_state_timer timey(
-        .RST_I(wb_reset),
-        .CLK_I(wb_clk),
-    	.DAT_I(st_dat),
-        .start_strobe(st_start_stb),            // causes timer to load
-        .end_strobe(st_end_stb)             // nudges caller to advance state
-        );
-
-    //THEN OTHER STUFF
-    //super first test: just turn on green LED
-    //FIGURE THIS OUT and write the alive-blinkies in the timer and nybsen and all
-    assign led_g_outwire = 1;
-    assign led_g = 1;       //dunt work.
-    */
 endmodule

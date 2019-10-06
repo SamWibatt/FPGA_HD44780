@@ -37,7 +37,7 @@ module hd44780_ram_tb;
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    hd44780_ram #(.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -63,8 +63,9 @@ module hd44780_ram_tb;
         //let's load some stuff in the memory! per https://timetoexplore.net/blog/initialize-memory-in-verilog
         //and see if we can reach into the ram to do it from here
         //tiny mem file $readmemh("settings/testmem.mem", rammy.mem);
-        $readmemh("settings/echomem.mem", rammy.mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
-        
+        //now handled as a parameter in ram module itself
+        //$readmemh("settings/echomem.mem", rammy.mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+
 
         //#5 tick, 10 ticks/syclc
         //how to communicate data address width? I guess just use 8 bits and swh
