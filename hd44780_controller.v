@@ -77,10 +77,10 @@ module hd44780_controller(
     //out to LCD module
     output wire [3:0] o_lcd_nybble,
     output wire o_rs,
-    output wire o_e,                //LCD enable pin
+    output wire o_e //,                //LCD enable pin
 
     //alive_led, not sure we need, but why not
-    output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
+    //output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
 );
 
     //for which we need a ramlet; here the dual ported one from TN1250, tweaked to be 256x16
@@ -88,7 +88,7 @@ module hd44780_controller(
     parameter ram_awidth = 8;
 
 
-
+    /*
     // DEBUG ===============================================================================
     // can I print out defines like this? yarp! Shouldn't synthesize anything
     //yosys doesn't like these defines so only do them in iverilog
@@ -110,6 +110,7 @@ module hd44780_controller(
 	end
     `endif
     // END DEBUG ===========================================================================
+    */
 
     /*
     **************************************************************************************
@@ -144,6 +145,9 @@ module hd44780_controller(
     reg lcd_rs_reg = 0;
     reg [7:0] lcd_byte_reg = 0;
     reg single_nybble = 0;              //flag for whether this command sends 1 nybble or 2
+
+
+    /* byte sender - switching to nybble sender
     wire bytesen_busy;
 
     //here is the byte sender that the controller will use! and its support vars
@@ -161,6 +165,26 @@ module hd44780_controller(
                                         //see above in nybble sender
         .o_e(o_e) //output wire o_e                 //LCD enable pin
         );
+    */
+
+    //nybble sender
+    //here is our nybble sender.
+    reg ns_ststrobe = 0;                    //start strobe for nybble sender
+    wire ns_busy;                           //nybble sender's busy, which is not the same as byte sender's
+    reg [3:0] ns_nybbin = 4'b0000;          //nybble we wish to send
+    reg byts_rs_reg = 0;
+
+    hd44780_nybble_sender nybsen(
+        .RST_I(RST_I),
+        .CLK_I(CLK_I),
+        .STB_I(ns_ststrobe),
+        .i_rs(lcd_rs_reg),		//was (i_rs), but that passes through async changes in rs line which is bad
+        .i_nybble(ns_nybbin),
+        .o_busy(ns_busy),
+        .o_lcd_data(o_lcd_nybble),
+        .o_rs(o_rs),
+        .o_e(o_e)
+    );
 
     //THEN a timer for the delays between sends
     reg[`H4_TIMER_BITS-1:0] time_len = 0;
@@ -206,8 +230,27 @@ module hd44780_controller(
 
 
     //state vars
-    localparam cst_idle = 4'b0000, cst_waitst = 4'b0001, cst_fetchword = 4'b0010, cst_sendbyte = 4'b0011,
-        cst_sb_drop = 4'b0100, cst_sb_wait = 4'b0101, cst_tm_drop = 4'b0110, cst_tm_wait = 4'b0111,
+    localparam cst_idle = 4'b0000, cst_waitst = 4'b0001,
+        cst_fetchword = 4'b0010,
+        //old bytesender states cst_sendbyte = 4'b0011, cst_sb_drop = 4'b0100, cst_sb_wait = 4'b0101,
+        //nybsen states
+        /*
+        //state defines
+        localparam st_c_idle = 3'b000;
+        localparam st_c_waitstb = 3'b001;
+        localparam st_c_nyb1 = 3'b010;
+        localparam st_c_stb1 = 3'b011;
+        localparam st_c_dstb1 = 3'b100;
+        localparam st_c_nyb2 = 3'b101;
+        localparam st_c_stb2 = 3'b110;
+        localparam st_c_dstb2 = 3'b111;
+        */
+        //first nybble states (high 4 bits of input byte)
+        cst_nyb1 = 4'b0011, cst_nybstb1 = 4'b0100, cst_nybds1 = 4'b0101,
+        //second (or only!) nybble states (low 4 bits of input byte)
+        cst_nyb2 = 4'b0110, cst_nybstb2 = 4'b0111, cst_nybds2 = 4'b1000,
+        //timer states
+        cst_tm_start = 4'b1001, cst_tm_drop = 4'b1010, cst_tm_wait = 4'b1011,
         cst_error = 4'b1111;
     reg[3:0] ctrl_state = 4'b0000;
 
@@ -260,7 +303,7 @@ module hd44780_controller(
                         //bits 10-12: time delay code, 0 = no delay
                         //bits 13-15: reserved
                         //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
-                        lcd_byte_reg <= read_data_reg[7:0];         //is this the right syntax?
+                        lcd_byte_reg <= read_data_reg[7:0];         //is this the right syntax? Register data result to preserve
                         lcd_rs_reg <= read_data_reg[8];
                         //single_nybble <= read_data_reg[9];        //don't really need to register this
                         //can I nest a case for the time code?
@@ -280,27 +323,80 @@ module hd44780_controller(
                             end
                         endcase
                         //reserved bits should currently be 0 or throw an error.
+                        //**** THIS WILL CHANGE WHEN USES FOR THESE BITS COME UP
                         if(|read_data_reg[15:13]) begin
                             cont_busy <= 0;
                             cont_error <= 1;
                             ctrl_state <= cst_error;
                         end
 
-                        //HERE we hinge on single nybble send ... how do we do this? FOr the moment, error out
-                        if(read_data_reg[9]) begin
-                            ctrl_state <= cst_sendbyte;
+                        //HERE we hinge on single nybble send. If
+                        if(~read_data_reg[9]) begin
+                            //reg[9] is 0, we send both nybbles.
+                            ctrl_state <= cst_nyb1;
                         end else begin
-                            //TEMP!!! SINGLE NYBBLE IS NOT REALLY AN ERROR!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
-                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
-                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
-                            //TEMP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! FIGURE OUT HOW TO HANDLE!!!!!!!!!!!!!!!
-                            cont_busy <= 0;
-                            cont_error <= 1;
-                            ctrl_state <= cst_error;
+                            //reg[9] is 1, send only low-order nybble.
+                            ctrl_state <= cst_nyb2;
                         end
 					end
 
+                    //first nybble states (high 4 bits of input byte)
+                    //cst_nyb1 = 4'b0011, cst_nybstb1 = 4'b0100, cst_nybds1 = 4'b0101,
+                    cst_nyb1: begin
+                        //just in case, wait for nybble sender not to be busy. It shouldn't be.
+                        if(~ns_busy) begin
+                            ns_nybbin <= lcd_byte_reg[7:4];         //I think this is right for high nybble
+                            ctrl_state <= cst_nybstb1;
+                        end
+                    end
+
+                    cst_nybstb1: begin
+                        ns_ststrobe <= 1;
+                        ctrl_state <= cst_nybds1;
+                    end
+
+                    cst_nybds1: begin
+                        ns_ststrobe <= 0;
+                        ctrl_state <= cst_nyb2;
+                    end
+
+                    //second (or only!) nybble states (low 4 bits of input byte)
+                    //cst_nyb2 = 4'b0110, cst_nybstb2 = 4'b0111, cst_nybds2 = 4'b1000,
+                    cst_nyb2: begin
+                        //wait for busy to drop - if this is only nybble, it should be 0 at this point
+                        if(~ns_busy) begin
+                            ns_nybbin <= lcd_byte_reg[3:0];     //low nybble
+                            ctrl_state <= cst_nybstb2;
+                        end
+                    end
+
+                    cst_nybstb2: begin
+                        ns_ststrobe <= 1;
+                        ctrl_state <= cst_nybds2;
+                    end
+
+                    cst_nybds2: begin
+                        ns_ststrobe <= 0;
+                        ctrl_state <= cst_tm_start;
+                    end
+
+                    cst_tm_start: begin
+                        if(~ns_busy) begin
+                            //here, if we have a zero delay, just skip past the delay part
+                            if(time_len == 0) begin
+                                //hey, I guess we're done!
+                                cont_busy <= 0;
+                                ctrl_state <= cst_idle;
+                            end else begin
+                                //strobe the timer
+                                timer_stb_reg <= 1;
+                                ctrl_state <= cst_tm_drop;
+                            end
+                        end
+                    end
+
+
+                    /* old byte sender states
                     cst_sendbyte: begin
                         //right so now all we should need to do is strobe the byte sender, yes?
                         bytesen_stb_reg <= 1;
@@ -327,6 +423,7 @@ module hd44780_controller(
                             end
                         end
                     end
+                    */
 
                     cst_tm_drop: begin
                         timer_stb_reg <= 1;
@@ -369,6 +466,7 @@ module hd44780_controller(
     assign error = cont_error;
     assign o_read_addr_lines = read_addr_reg;
 
+    /*
     //===================== BLINKY ===============================================================================================================================================================================================
     // Super simple "I'm Alive" blinky on one of the external LEDs.
 	parameter GREENBLINKBITS = `H4_TIMER_BITS + 4;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
@@ -380,6 +478,6 @@ module hd44780_controller(
 	end
 
 	assign alive_led = ~greenblinkct[GREENBLINKBITS-1];	   //controller_alive, always block just above this
-
+    */
 
 endmodule

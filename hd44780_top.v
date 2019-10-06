@@ -600,9 +600,10 @@ module hd44780_top(
 
     reg [address_bits-1:0] start_addr = 0;
     reg [address_bits-1:0] addr_w_reg = 0;
-    reg [address_bits-1:0] addr_r_reg = 0;
+    //reg [address_bits-1:0] addr_r_reg = 0;        //controller sets these, so use wires
+    wire [address_bits-1:0] addr_r_wires;
     reg [data_bits-1:0] data_w_reg = 0;
-    reg [data_bits-1:0] data_r_reg = 0;
+    //reg [data_bits-1:0] data_r_reg = 0;
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
@@ -612,11 +613,39 @@ module hd44780_top(
         .write_en(ram_wen),
         .waddr(addr_w_reg),
         .wclk(clk),
-        .raddr(addr_r_reg),
+        .raddr(addr_r_wires),
         .rclk(clk),
         .dout(data_r_wire));
 
-    //******** TODO then we need a controller, soon come
+
+    reg cont_stb = 0;
+    wire cont_busy;
+    wire cont_error;
+
+    //and an actual controller!
+    hd44780_controller ctrlr(
+        .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+        .CLK_I(wb_clk),
+        .STB_I(cont_stb),                    //to let this module know rs and lcd_data are ready and to do its thing.
+
+        //parameters related to RAMlet that contains instructions
+        .o_read_addr_lines(addr_r_wires),    //wires that lead to input ports of a ram or a mux of several accessors to ram
+        .i_start_addr(start_addr),          //address from which to start reading control words in the given ram.
+        .i_read_data_lines(data_r_wire),     //data returned from ram
+
+        //might be part of wishbone too, but these are for communicating with caller
+        .busy(cont_busy),
+        .error(cont_error),
+
+        //actual chip pins hereafter!
+        //out to LCD module
+        .o_lcd_nybble(lcd_data),
+        .o_rs(lcd_rs),
+        .o_e(lcd_e) //,                //LCD enable pin
+
+        //alive_led, not sure we need, but why not
+        //output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
+    );
 
 `endif //LCD_TARGET_CONTROLLER - work out what else can be extracted
 
