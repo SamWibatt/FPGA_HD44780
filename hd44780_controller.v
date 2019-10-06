@@ -231,33 +231,20 @@ module hd44780_controller(
 
     //state vars
     localparam cst_idle = 4'b0000, cst_waitst = 4'b0001,
-        cst_fetchword = 4'b0010,
-        //old bytesender states cst_sendbyte = 4'b0011, cst_sb_drop = 4'b0100, cst_sb_wait = 4'b0101,
-        //nybsen states
-        /*
-        //state defines
-        localparam st_c_idle = 3'b000;
-        localparam st_c_waitstb = 3'b001;
-        localparam st_c_nyb1 = 3'b010;
-        localparam st_c_stb1 = 3'b011;
-        localparam st_c_dstb1 = 3'b100;
-        localparam st_c_nyb2 = 3'b101;
-        localparam st_c_stb2 = 3'b110;
-        localparam st_c_dstb2 = 3'b111;
-        */
+        cst_fetchword = 4'b0010, cst_parseword = 4'b0011,
         //first nybble states (high 4 bits of input byte)
-        cst_nyb1 = 4'b0011, cst_nybstb1 = 4'b0100, cst_nybds1 = 4'b0101,
+        cst_nyb1 = 4'b0100, cst_nybstb1 = 4'b0101, cst_nybds1 = 4'b0110,
         //second (or only!) nybble states (low 4 bits of input byte)
-        cst_nyb2 = 4'b0110, cst_nybstb2 = 4'b0111, cst_nybds2 = 4'b1000,
+        cst_nyb2 = 4'b0111, cst_nybstb2 = 4'b1000, cst_nybds2 = 4'b1001,
         //timer states
-        cst_tm_start = 4'b1001, cst_tm_drop = 4'b1010, cst_tm_wait = 4'b1011,
+        cst_tm_start = 4'b1010, cst_tm_drop = 4'b1011, cst_tm_wait = 4'b1100,
         cst_error = 4'b1111;
     reg[3:0] ctrl_state = 4'b0000;
 
     always @(posedge CLK_I) begin
         if(RST_I) begin
             read_data_reg <= 0;
-            read_addr_reg <= 0;
+            //read_addr_reg <= 0;
             cur_addr_reg <= 0;
             ctrl_state <= cst_idle;
             lcd_rs_reg <= 0;
@@ -271,13 +258,14 @@ module hd44780_controller(
                 ctrl_state <= cst_waitst;
                 cont_busy <= 1;
                 cur_addr_reg <= i_start_addr;       //program counter into ram
-                read_addr_reg <= i_start_addr;      //might as well get started there ...?
+                //read_addr_reg <= i_start_addr;      //might as well get started there ...?
             end else begin
-                read_addr_reg <= read_addr_reg + 1;       //temp debug
+                //read_addr_reg <= read_addr_reg + 1;       //temp debug
                 //and here we have a state machine
 				case(ctrl_state)
 					cst_idle: begin
 						cont_busy <= 0;
+                        cont_error <= 0;
 					end
 
 					cst_waitst: begin
@@ -287,22 +275,32 @@ module hd44780_controller(
 							//now time to cue up the address into RAM and
 							//let us assume that the RAM has settled, isn't being written to right where we're reading from. So let us load up the next address and
 							//advance it?
-							read_addr_reg <= cur_addr_reg;
+							//read_addr_reg <= cur_addr_reg;
 							cur_addr_reg <= cur_addr_reg + 1;
 							ctrl_state <= cst_fetchword;
 						end
 					end
 
 					cst_fetchword: begin
-						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
-						read_data_reg <= i_read_data_lines;
-						//now what can we do to parse this?
-						//bits 7-0: LCD data byte
-						//bit 8: RS
-                        //bit 9: single nybble flag, 1 = send only lower nybble
-                        //bits 10-12: time delay code, 0 = no delay
-                        //bits 13-15: reserved
-                        //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
+                        if(i_read_data_lines[13]) begin
+                            //bit 13 is the end instruction; we are done!
+                            cont_busy <= 0;
+                            ctrl_state <= cst_idle;
+                        end else begin
+    						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
+    						read_data_reg <= i_read_data_lines;
+    						//now what can we do to parse this?
+    						//bits 7-0: LCD data byte
+    						//bit 8: RS
+                            //bit 9: single nybble flag, 1 = send only lower nybble
+                            //bits 10-12: time delay code, 0 = no delay
+                            //bit 13: if 1, stop. (see above.)
+                            //bits 14-15: reserved
+                            //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
+                        end
+                    end
+
+                    cst_parseword: begin
                         lcd_byte_reg <= read_data_reg[7:0];         //is this the right syntax? Register data result to preserve
                         lcd_rs_reg <= read_data_reg[8];
                         //single_nybble <= read_data_reg[9];        //don't really need to register this
@@ -324,7 +322,7 @@ module hd44780_controller(
                         endcase
                         //reserved bits should currently be 0 or throw an error.
                         //**** THIS WILL CHANGE WHEN USES FOR THESE BITS COME UP
-                        if(|read_data_reg[15:13]) begin
+                        if(|read_data_reg[15:14]) begin
                             cont_busy <= 0;
                             cont_error <= 1;
                             ctrl_state <= cst_error;
@@ -384,9 +382,9 @@ module hd44780_controller(
                         if(~ns_busy) begin
                             //here, if we have a zero delay, just skip past the delay part
                             if(time_len == 0) begin
-                                //hey, I guess we're done!
-                                cont_busy <= 0;
-                                ctrl_state <= cst_idle;
+                                //hey, I guess we're done! nope, done with an iteration
+                                cur_addr_reg <= cur_addr_reg + 1;
+                                ctrl_state <= cst_fetchword;
                             end else begin
                                 //strobe the timer
                                 timer_stb_reg <= 1;
@@ -394,36 +392,6 @@ module hd44780_controller(
                             end
                         end
                     end
-
-
-                    /* old byte sender states
-                    cst_sendbyte: begin
-                        //right so now all we should need to do is strobe the byte sender, yes?
-                        bytesen_stb_reg <= 1;
-                        ctrl_state <= cst_sb_drop;
-                    end
-
-                    cst_sb_drop: begin
-                        bytesen_stb_reg <= 0;
-                        ctrl_state <= cst_sb_wait;
-                    end
-
-                    cst_sb_wait: begin
-                        //wait for bytesen_busy to drop
-                        if(~bytesen_busy) begin
-                            //here, if we have a zero delay, just skip past the delay part
-                            if(time_len == 0) begin
-                                //hey, I guess we're done!
-                                cont_busy <= 0;
-                                ctrl_state <= cst_idle;
-                            end else begin
-                                //strobe the timer
-                                timer_stb_reg <= 1;
-                                ctrl_state <= cst_tm_drop;
-                            end
-                        end
-                    end
-                    */
 
                     cst_tm_drop: begin
                         timer_stb_reg <= 1;
@@ -432,9 +400,10 @@ module hd44780_controller(
 
                     cst_tm_wait: begin
                         if(timer_end_stb) begin
-                            //hey, I guess we're done!
-                            cont_busy <= 0;
-                            ctrl_state <= cst_idle;
+                            //hey, I guess we're done! ... no, we're not. we're done with one iteration.
+                            //go back and grab the next.
+                            cur_addr_reg <= cur_addr_reg + 1;
+                            ctrl_state <= cst_fetchword;
                         end
                     end
 
