@@ -282,25 +282,20 @@ module hd44780_controller(
 					end
 
 					cst_fetchword: begin
-                        if(i_read_data_lines[13]) begin
-                            //bit 13 is the end instruction; we are done!
-                            cont_busy <= 0;
-                            ctrl_state <= cst_idle;
-                        end else begin
-    						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
-    						read_data_reg <= i_read_data_lines;
-    						//now what can we do to parse this?
-    						//bits 7-0: LCD data byte
-    						//bit 8: RS
-                            //bit 9: single nybble flag, 1 = send only lower nybble
-                            //bits 10-12: time delay code, 0 = no delay
-                            //bit 13: if 1, stop. (see above.)
-                            //bits 14-15: reserved
-                            //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
-                        end
+						//register the outputs from the ram module. One hopes one cycle is enough for the RAM to present the data we want.
+						read_data_reg <= i_read_data_lines;
+                        //see https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller
+                        ctrl_state <= cst_parseword;
                     end
 
                     cst_parseword: begin
+                        //now what can we do to parse this?
+                        //bits 7-0: LCD data byte
+                        //bit 8: RS
+                        //bit 9: single nybble flag, 1 = send only lower nybble
+                        //bits 10-12: time delay code, 0 = no delay
+                        //bit 13: if 1, stop. (see above.)
+                        //bits 14-15: reserved
                         lcd_byte_reg <= read_data_reg[7:0];         //is this the right syntax? Register data result to preserve
                         lcd_rs_reg <= read_data_reg[8];
                         //single_nybble <= read_data_reg[9];        //don't really need to register this
@@ -382,9 +377,15 @@ module hd44780_controller(
                         if(~ns_busy) begin
                             //here, if we have a zero delay, just skip past the delay part
                             if(time_len == 0) begin
-                                //hey, I guess we're done! nope, done with an iteration
-                                cur_addr_reg <= cur_addr_reg + 1;
-                                ctrl_state <= cst_fetchword;
+                                //hey, I guess we're done! nope, done with an iteration, check for stop
+                                if(read_data_reg[13]) begin
+                                    //bit 13 is the end instruction; we are done!
+                                    cont_busy <= 0;
+                                    ctrl_state <= cst_idle;
+                                end else begin
+                                    cur_addr_reg <= cur_addr_reg + 1;
+                                    ctrl_state <= cst_fetchword;
+                                end
                             end else begin
                                 //strobe the timer
                                 timer_stb_reg <= 1;
@@ -401,9 +402,15 @@ module hd44780_controller(
                     cst_tm_wait: begin
                         if(timer_end_stb) begin
                             //hey, I guess we're done! ... no, we're not. we're done with one iteration.
-                            //go back and grab the next.
-                            cur_addr_reg <= cur_addr_reg + 1;
-                            ctrl_state <= cst_fetchword;
+                            //go back and grab the next unless there's a stop bit
+                            if(read_data_reg[13]) begin
+                                //bit 13 is the end instruction; we are done!
+                                cont_busy <= 0;
+                                ctrl_state <= cst_idle;
+                            end else begin
+                                cur_addr_reg <= cur_addr_reg + 1;
+                                ctrl_state <= cst_fetchword;
+                            end
                         end
                     end
 

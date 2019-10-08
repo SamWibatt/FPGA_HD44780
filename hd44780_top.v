@@ -470,7 +470,19 @@ module hd44780_top(
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    /* From issue https://github.com/SamWibatt/FPGA_HD44780/issues/24 - to ctrlrtest1.mem
+    !end, RS 1, delay 000, !1nyb, 0111_1010 or something = 16'b0000_0001_0111_1010 =  017A
+    !end, RS 0, delay 001, !1nyb, 1101_1000 = 16'b0000_0100_1101_1000 =               04D8
+    !end, RS 1, delay 010, !1nyb, 1001_0110 = 16'b0000_1001_1001_0110 =               0996
+    !end, RS 0, delay 000, 1nyb, 1111_0101 - single nyb - = 16'b0000_0010_1111_0101 = 02F5
+    !end, RS 1, delay 001, 1nyb, 0110_0001 - single nyb - = 16'b0000_0111_0110_0001 = 0761
+    !end, RS 0, delay 011, !1nyb, 0100_1100 = 16'b0000_1100_0100_1100 =               0C4C
+    !end, RS 1, delay 100, !1nyb, 1001_0110 = 16'b0001_0001_1001_0110 =               1196
+    !end, RS 0, delay 101, !1nyb, 1110_0111 = 16'b0001_0100_1110_0111 =               14E7
+    end, RS 1, delay 001, !1nyb, 1111_0000 - end postsend = 16'b0010_0101_1111_0000 = 25F0
+    */
+
+    hd44780_ram #(.initfile("settings/ctrlrtest1.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -646,6 +658,7 @@ module hd44780_top(
         //alive_led, not sure we need, but why not
         //output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
     );
+
 
 `endif //LCD_TARGET_CONTROLLER - work out what else can be extracted
 
