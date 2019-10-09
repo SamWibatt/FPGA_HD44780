@@ -482,7 +482,7 @@ module hd44780_top(
     end, RS 1, delay 001, !1nyb, 1111_0000 - end postsend = 16'b0010_0101_1111_0000 = 25F0
     */
 
-    hd44780_ram #(.initfile("settings/ctrlrtest1.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -619,8 +619,8 @@ module hd44780_top(
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    //********* TODO will want to load up a different mem file once I get it specified
-    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    //********* load ram up with the test memory
+    hd44780_ram #(.initfile("settings/ctrlrtest1.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -659,6 +659,11 @@ module hd44780_top(
         //output wire alive_led //,			//this is THE LED, the green one that shows the controller is alive
     );
 
+    //so finally! Our state machine.
+    reg[1:0] top_state = 0;
+    localparam tst_begin = 2'b00;
+
+    //*********************** LET OFF HERE 
 
 `endif //LCD_TARGET_CONTROLLER - work out what else can be extracted
 

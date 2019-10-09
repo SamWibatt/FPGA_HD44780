@@ -42,37 +42,65 @@ module hd44780_controller_tb;
         .CLK_O(wb_clk)
         );
 
+    // RAM with special instruction set
+    //we need a ram and a controller. Here is the ram.
+    parameter address_bits = 8, data_bits = 16;      // try a 256x16
 
+    reg [address_bits-1:0] start_addr = 0;
+    reg [address_bits-1:0] addr_w_reg = 0;
+    //reg [address_bits-1:0] addr_r_reg = 0;        //controller sets these, so use wires
+    wire [address_bits-1:0] addr_r_wires;
+    reg [data_bits-1:0] data_w_reg = 0;
+    //reg [data_bits-1:0] data_r_reg = 0;
+    wire [data_bits-1:0] data_r_wire;
+    reg ram_wen = 0;        //write enable
+
+    hd44780_ram #(.initfile("settings/ctrlrtest1.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+        .din(data_w_reg),
+        .write_en(ram_wen),
+        .waddr(addr_w_reg),
+        .wclk(wb_clk),
+        .raddr(addr_r_wires),
+        .rclk(wb_clk),
+        .dout(data_r_wire));
+
+
+    //and the controller!
     reg cont_ststart = 0;
     wire cont_busy;
-    wire led_outwire;
+    wire cont_error;
+    wire o_rs;
+    wire o_e;
+    wire [3:0] o_lcd_data;
 
-    reg [7:0] start_addr = 0;
+    hd44780_controller #(.ram_dwidth(16),.ram_awidth(8)) cont (
+        .RST_I(wb_reset),                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
+        .CLK_I(wb_clk),
+        .STB_I(cont_ststart),                    //to let this module know rs and lcd_data are ready and to do its thing.
 
-    hd44780_controller #(.ram_dwidth(16),.ram_awidth(8)) cont(
-        .RST_I(wb_reset), //input wire RST_I,                    //wishbone reset, also on falling edge of reset we want to do the whole big LCD init.
-        .CLK_I(wb_clk), //input wire CLK_I,
-        .STB_I(cont_ststart), //input wire STB_I,                    //to let this module know rs and lcd_data are ready and to do its thing.
-        /*
-        .i_rs(lcd_rs), //input wire i_rs,                     //register select - command or data, will go to LCD RS pin
-        .i_lcd_data(lcd_byte), //input wire[7:0] i_lcd_data,     // byte to send to LCD, one nybble at a time
-        */
+        //parameters related to RAMlet that contains instructions
+        .o_read_addr_lines(addr_r_wires),    //wires that lead to input ports of a ram or a mux of several accessors to ram
         .i_start_addr(start_addr),          //address from which to start reading control words in the given ram.
-        .busy(cont_busy), //output wire busy,
-    	.alive_led(led_outwire)  //, //output wire alive_led,			//this is THE LED, the green one that shows the controller is alive
-        /*
-        .o_rs(o_rs), //output wire o_rs,
-        .o_lcd_data(o_lcd_nybble), //output wire [3:0] o_lcd_data,   //can you do this? the data bits we send really are 7:4 - I guess others NC? tied low?
-                                        //see above in nybble sender
-        .o_e(o_lcd_e) //output wire o_e                 //LCD enable pin
-        */
-        );
+        .i_read_data_lines(data_r_wire),     //data returned from ram
 
-    //we need this module to actually do SOMETHING
+        //might be part of wishbone too, but these are for communicating with caller
+        .busy(cont_busy),
+        .error(cont_error),
+
+        //actual chip pins hereafter!
+        //out to LCD module
+        .o_lcd_nybble(o_lcd_data),
+        .o_rs(o_rs),
+        .o_e(o_e) //,                //LCD enable pin
+    );
+
+
+    //we need this module to actually do SOMETHING... do we?
+    /*
     always @(posedge clk) begin
         start_addr = start_addr + 1;
     end
-
+    */
 
     //whatever we're testing, we need to dump gtkwave-viewable trace
     initial begin
@@ -83,11 +111,11 @@ module hd44780_controller_tb;
     initial begin
         //#5 tick, 10 ticks/syclc
 
-        #90 start_addr = 8'b0110_1101;            //distinctive nybbles
+        #90 start_addr = 0;            //distinctive nybbles
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
-
-        #2500 $finish;
+        //this'll take a while to run!
+        #700000 $finish;
     end
 
 endmodule

@@ -276,7 +276,7 @@ module hd44780_controller(
 							//let us assume that the RAM has settled, isn't being written to right where we're reading from. So let us load up the next address and
 							//advance it?
 							//read_addr_reg <= cur_addr_reg;
-							cur_addr_reg <= cur_addr_reg + 1;
+							//cur_addr_reg <= cur_addr_reg + 1;
 							ctrl_state <= cst_fetchword;
 						end
 					end
@@ -395,7 +395,7 @@ module hd44780_controller(
                     end
 
                     cst_tm_drop: begin
-                        timer_stb_reg <= 1;
+                        timer_stb_reg <= 0;
                         ctrl_state <= cst_tm_wait;
                     end
 
@@ -440,7 +440,7 @@ module hd44780_controller(
 
     assign busy = cont_busy;
     assign error = cont_error;
-    assign o_read_addr_lines = read_addr_reg;
+    assign o_read_addr_lines = cur_addr_reg;
 
     /*
     //===================== BLINKY ===============================================================================================================================================================================================
