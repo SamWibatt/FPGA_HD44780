@@ -238,6 +238,8 @@ module hd44780_controller(
         cst_nyb2 = 4'b0111, cst_nybstb2 = 4'b1000, cst_nybds2 = 4'b1001,
         //timer states
         cst_tm_start = 4'b1010, cst_tm_drop = 4'b1011, cst_tm_wait = 4'b1100,
+        // next instruction fetch wait state
+        cst_waitram = 4'b1101,
         cst_error = 4'b1111;
     reg[3:0] ctrl_state = 4'b0000;
 
@@ -384,7 +386,7 @@ module hd44780_controller(
                                     ctrl_state <= cst_idle;
                                 end else begin
                                     cur_addr_reg <= cur_addr_reg + 1;
-                                    ctrl_state <= cst_fetchword;
+                                    ctrl_state <= cst_waitram;
                                 end
                             end else begin
                                 //strobe the timer
@@ -409,11 +411,15 @@ module hd44780_controller(
                                 ctrl_state <= cst_idle;
                             end else begin
                                 cur_addr_reg <= cur_addr_reg + 1;
-                                ctrl_state <= cst_fetchword;
+                                ctrl_state <= cst_waitram;
                             end
                         end
                     end
 
+                    cst_waitram: begin
+                        //wait state to allow RAM to settle - simulation seems to need it, speed isn't critical
+                        ctrl_state <= cst_fetchword;
+                    end
 
                     // ------------------------
 

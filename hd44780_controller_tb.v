@@ -55,7 +55,7 @@ module hd44780_controller_tb;
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    hd44780_ram #(.initfile("settings/ctrlrtest1.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/ctrlrtest0c.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -114,8 +114,11 @@ module hd44780_controller_tb;
         #90 start_addr = 0;            //distinctive nybbles
         #10 cont_ststart = 1;                   //strobe lcd controller
         #10 cont_ststart = 0;
+
+        //for ctrlrtest0b
+        #10000 $finish;
         //this'll take a while to run!
-        #700000 $finish;
+        //#700000 $finish;
     end
 
 endmodule
