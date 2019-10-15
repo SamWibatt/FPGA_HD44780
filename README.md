@@ -3,6 +3,10 @@ Simple, write-only character LCD core
 
 ## work in progress. This is a project I'm using to teach myself programmable logic, so I don't (yet) recommend using it. As of this writing on 10/15/19, it doesn't yet work. I'm making the project public so anyone interested can see the process I'm going through for design, as well as my current skill level.
 
+### The [project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki) is a development diary
+
+# overview
+
 * platform: [Gnarly Grey Upduino V2.0](https://github.com/gtjennings1/UPDuino_v2_0) - [Sold here](http://www.gnarlygrey.com/)
 * toolchain: Icestorm - [github](https://github.com/cliffordwolf/icestorm), [home page](http://www.clifford.at/icestorm/)
     * iverilog
@@ -13,6 +17,7 @@ Simple, write-only character LCD core
 * dev system: Ubuntu 18.04 laptop
 * Logic analyzer: [Inno-maker LA1010 16ch 100MHz](http://www.inno-maker.com/product/usb-logic-analyzer/) - [also at Amazon](https://smile.amazon.com/gp/product/B07D21GG6J/)
 
+# original notes
 
 ### from FPGA AI Notes:
 * WHY NOT WRITE A HD44780 CORE with wishbone interface?
