@@ -5,6 +5,7 @@
 module hd44780_ram (din, write_en, waddr, wclk, raddr, rclk, dout);
     //initialization file
     parameter initfile = "settings/echomem.mem";
+    parameter filehex = 1;
 
      //512x8 default
     parameter addr_width = 9;
@@ -26,7 +27,11 @@ module hd44780_ram (din, write_en, waddr, wclk, raddr, rclk, dout);
 
     //test: will yosys let you preload a file here?
     initial begin
-        //see https://github.com/YosysHQ/yosys/issues/333
-        $readmemh(initfile, mem);       //should fill entire 256x16 where every word is itself e.g. addr 0123 contains 0x0123
+        if(filehex == 1) begin
+            //see https://github.com/YosysHQ/yosys/issues/333
+            $readmemh(initfile, mem);       //default echomem.mem fills all 256x16 w/every word is itself e.g. addr 0123 = 0x0123
+        end else begin
+            $readmemb(initfile, mem);
+        end
     end
 endmodule
