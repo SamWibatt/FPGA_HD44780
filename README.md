@@ -1,8 +1,21 @@
 # FPGA_HD44780
 Simple, write-only character LCD core
 
+## work in progress. This is a project I'm using to teach myself programmable logic, so I don't (yet) recommend using it. As of this writing on 10/15/19, it doesn't yet work. I'm making the project public so anyone interested can see the process I'm going through for design, as well as my current skill level.
+
+* platform: [Gnarly Grey Upduino V2.0](https://github.com/gtjennings1/UPDuino_v2_0) - [Sold here](http://www.gnarlygrey.com/)
+* toolchain: Icestorm - [github](https://github.com/cliffordwolf/icestorm), [home page](http://www.clifford.at/icestorm/)
+    * iverilog
+    * yosys
+    * nextpnr
+    * gtkwave
+    * verilator (planned - nothing implemented yet)
+* dev system: Ubuntu 18.04 laptop
+* Logic analyzer: [Inno-maker LA1010 16ch 100MHz](http://www.inno-maker.com/product/usb-logic-analyzer/) - [also at Amazon](https://smile.amazon.com/gp/product/B07D21GG6J/)
+
+
 ### from FPGA AI Notes:
-* WY NOT WRITE A HD44780 CORE with wishbone interface?
+* WHY NOT WRITE A HD44780 CORE with wishbone interface?
     * That is a thing I have my own sources for in assembly, and am capable of writing in gateware.
     * Also a decent candidate for Verilator? Esp if I roped in ncurses and did the display lol
     * no lol, that is a great idea. Tho maybe need to do it with a grx thing because of special characters.
@@ -19,7 +32,7 @@ that's the idea
     * hm, look at the interface
     * At first just support 4-bit, can do 8-bit later
     * saved hd44780 datasheet to FPGA/charLCD
-    * And some good images Esp one from https://slideplayer.com/slide/3942627/ 
+    * And some good images Esp one from https://slideplayer.com/slide/3942627/
     ![HD44780 timing diagrams](images/HD44780BusTimingdiagram.jpg)
     * Verify timing w sheet, figure out how to tell if the driver violates. Let's only do write, first
     * and **only write ever** BC level shifter to 5 v
