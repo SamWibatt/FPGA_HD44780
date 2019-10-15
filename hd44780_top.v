@@ -482,7 +482,7 @@ module hd44780_top(
     end, RS 1, delay 001, !1nyb, 1111_0000 - end postsend = 16'b0010_0101_1111_0000 = 25F0
     */
 
-    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/testmem.mem"),.filehex(0),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),
@@ -663,7 +663,7 @@ module hd44780_top(
     reg[1:0] top_state = 0;
     localparam tst_begin = 2'b00;
 
-    //*********************** LET OFF HERE 
+    //*********************** LET OFF HERE
 
 `endif //LCD_TARGET_CONTROLLER - work out what else can be extracted
 

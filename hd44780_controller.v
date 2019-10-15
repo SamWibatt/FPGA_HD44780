@@ -190,13 +190,13 @@ module hd44780_controller(
     reg[`H4_TIMER_BITS-1:0] time_len = 0;
     reg timer_stb_reg = 0;                       //start strobe
     //wire ststrobe_wire = ststrobe;        //try this assign to see if start strobe will work with it
-    wire timer_end_stb;
+    wire timer_busy;
     hd44780_state_timer stimey(
         .RST_I(RST_I),
         .CLK_I(CLK_I),
         .DAT_I(time_len),
         .start_strobe(timer_stb_reg), //(ststrobe_wire),       //this was ststrobe, and we weren't seeing the strobe in controller
-        .end_strobe(timer_end_stb)
+        .busy(timer_busy)
         );
 
 
@@ -402,7 +402,7 @@ module hd44780_controller(
                     end
 
                     cst_tm_wait: begin
-                        if(timer_end_stb) begin
+                        if(~timer_busy) begin
                             //hey, I guess we're done! ... no, we're not. we're done with one iteration.
                             //go back and grab the next unless there's a stop bit
                             if(read_data_reg[13]) begin

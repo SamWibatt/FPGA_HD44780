@@ -1,63 +1,49 @@
 [*]
 [*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
-[*] Thu Sep 12 18:26:42 2019
+[*] Tue Oct 15 03:08:20 2019
 [*]
-[dumpfile] "/home/sean/FPGAgit/FPGA_HD44780/hd44780_bytesend_tb.fst"
-[dumpfile_mtime] "Thu Sep 12 18:24:30 2019"
-[dumpfile_size] 2739
-[savefile] "/home/sean/FPGAgit/FPGA_HD44780/bytesend_test.gtkw"
+[dumpfile] "/home/sean/dev/FPGA/FPGA_HD44780/hd44780_bytesend_tb.fst"
+[dumpfile_mtime] "Tue Oct 15 03:06:28 2019"
+[dumpfile_size] 1210
+[savefile] "/home/sean/dev/FPGA/FPGA_HD44780/settings/bytesend_test.gtkw"
 [timestart] 0
-[size] 1885 931
-[pos] -1 -1
-*-7.098342 130 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[size] 1331 713
+[pos] -29 -29
+*-9.541563 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] hd44780_tb.
 [treeopen] hd44780_tb.cont.
 [sst_width] 223
-[signals_width] 150
+[signals_width] 206
 [sst_expanded] 1
-[sst_vpaned_height] 268
+[sst_vpaned_height] 192
 @28
 [color] 1
-hd44780_tb.syscon.CLK_O
+hd44780_tb.cont.CLK_I
 [color] 1
-hd44780_tb.syscon.RST_O
+hd44780_tb.cont.RST_I
+[color] 1
 hd44780_tb.cont.STB_I
-hd44780_tb.cont.alive_led
 hd44780_tb.cont.busy
+hd44780_tb.cont.byts_busy_reg
+hd44780_tb.cont.byts_rs_reg
+hd44780_tb.cont.byts_state[2:0]
 @22
 hd44780_tb.cont.i_lcd_data[7:0]
+hd44780_tb.cont.i_lcd_data_shadow[7:0]
 @28
 hd44780_tb.cont.i_rs
+hd44780_tb.cont.ns_busy
 @22
 hd44780_tb.cont.ns_nybbin[3:0]
 @28
 hd44780_tb.cont.ns_ststrobe
+[color] 3
 hd44780_tb.cont.o_e
 @22
+[color] 3
 hd44780_tb.cont.o_lcd_data[3:0]
 @28
+[color] 3
 hd44780_tb.cont.o_rs
-[color] 3
-hd44780_tb.cont.nybsen.STB_I
-@22
-[color] 3
-hd44780_tb.cont.nybsen.STDC[3:0]
-[color] 3
-hd44780_tb.cont.nybsen.i_nybble[3:0]
-@28
-[color] 3
-hd44780_tb.cont.nybsen.i_rs
-[color] 3
-hd44780_tb.cont.nybsen.rs_reg
-[color] 3
-hd44780_tb.cont.nybsen.o_rs
-@29
-[color] 3
-hd44780_tb.cont.nybsen.busy_reg
-@28
-[color] 3
-hd44780_tb.cont.nybsen.o_busy
-[color] 3
-hd44780_tb.cont.nybsen.o_e
 [pattern_trace] 1
 [pattern_trace] 0

@@ -37,7 +37,7 @@ module hd44780_ram_tb;
     wire [data_bits-1:0] data_r_wire;
     reg ram_wen = 0;        //write enable
 
-    hd44780_ram #(.initfile("settings/testmem.mem"),.addr_width(address_bits),.data_width(data_bits)) rammy(
+    hd44780_ram #(.initfile("settings/testmem.mem"),.filehex(0),.addr_width(address_bits),.data_width(data_bits)) rammy(
         .din(data_w_reg),
         .write_en(ram_wen),
         .waddr(addr_w_reg),

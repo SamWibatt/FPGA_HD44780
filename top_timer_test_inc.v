@@ -19,14 +19,14 @@ reg [3:0] lcd_data_reg = 4'b0000;
 //state timer test
 reg [`H4_TIMER_BITS-1:0] st_dat = 0;
 reg st_start_stb = 0;
-wire st_end_stb;
+wire st_busy;
 
 hd44780_state_timer timey(
     .RST_I(wb_reset),
     .CLK_I(wb_clk),
     .DAT_I(st_dat),
     .start_strobe(st_start_stb),            // causes timer to load
-    .end_strobe(st_end_stb)             // nudges caller to advance state
+    .busy(st_busy)
     );
 
 reg [2:0] ttest_state = 0;
@@ -59,7 +59,7 @@ always @(posedge clk) begin
 
             tt_waitend: begin
                 st_start_stb <= 0;
-                if(st_end_stb) begin
+                if(~st_busy) begin
                     ttest_state = tt_loadtm2;
                 end
             end
@@ -74,7 +74,7 @@ always @(posedge clk) begin
 
             tt_waitend2: begin
                 st_start_stb <= 0;
-                if(st_end_stb) begin
+                if(~st_busy) begin
                     ttest_state = tt_loadtm3;
                 end
             end
@@ -89,7 +89,7 @@ always @(posedge clk) begin
 
             tt_waitend3: begin
                 st_start_stb <= 0;
-                if(st_end_stb) begin
+                if(~st_busy) begin
                     ttest_state = tt_lockup;
                 end
             end
@@ -128,7 +128,7 @@ end
 //wire lcd_rs;                 //R/S pin - R/~W is tied low
 assign lcd_rs = lcd_rs_reg; // was st_start_stb;   //mirror start strobe with rs for LA visibility - was lcd_rs_reg;
 //wire lcd_e;                  //enable!
-assign lcd_e = st_end_stb | st_start_stb;  //mirror START AND end strobe with e for LA visitbility - was lcd_e_reg;
+assign lcd_e = st_busy;         //show busy on e - start strobe will be on LED 0 below
 //wire [3:0] lcd_data;         //data
 assign lcd_data = lcd_data_reg;     //What's something interesting to do with lcd_data_reg? currently counting
 
@@ -147,7 +147,6 @@ assign led_b_outwire = greenblinkct[GREENBLINKBITS-1];
 assign led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
 
 //STUFF THAT SHUTS UP THE WARNINGS ABOUT UNUSUED PORTS -
-reg reg_led0 = 0;
 reg reg_led1 = 0;
 reg reg_led2 = 0;
 reg reg_led3 = 0;
@@ -158,13 +157,11 @@ always @(posedge clk) begin
     if(button_has_been_pressed) begin
         //for top pure blinky, set all active low other-blinkies to off
         //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
-        reg_led0 <= greenblinkct[GREENBLINKBITS-2];
         reg_led1 <= ~greenblinkct[GREENBLINKBITS-3];
         reg_led2 <= greenblinkct[GREENBLINKBITS-3];
         reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
     end else begin
         // glue LEDs off
-        reg_led0 <= 1;
         reg_led1 <= 1;
         reg_led2 <= 1;
         reg_led3 <= 1;
@@ -172,7 +169,7 @@ always @(posedge clk) begin
 end
 
 //wire o_led0;     //set_io o_led0 36
-assign o_led0 = reg_led0;     //act low
+assign o_led0 = ~st_start_stb;     //act low
 //wire o_led1;     //set_io o_led1 42
 assign o_led1 = reg_led1;     //act low
 //wire o_led2;     //set_io o_led2 38

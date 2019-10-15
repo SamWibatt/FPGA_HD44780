@@ -66,13 +66,13 @@ module hd44780_timer_tb;
     reg[`H4_TIMER_BITS-1:0] time_len = 0;
     reg ststrobe = 0;                       //start strobe
     //wire ststrobe_wire = ststrobe;        //try this assign to see if start strobe will work with it
-    wire endstrobe;
+    wire tmr_busy;
     hd44780_state_timer stimey(
         .RST_I(wb_reset),
         .CLK_I(wb_clk),
         .DAT_I(time_len),
         .start_strobe(ststrobe), //(ststrobe_wire),       //this was ststrobe, and we weren't seeing the strobe in controller
-        .end_strobe(endstrobe)
+        .busy(tmr_busy)
         );
 
 

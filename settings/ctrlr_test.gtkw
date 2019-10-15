@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.86 (w)1999-2017 BSI
-[*] Tue Oct 15 02:28:39 2019
+[*] Tue Oct 15 03:18:24 2019
 [*]
 [dumpfile] "/home/sean/dev/FPGA/FPGA_HD44780/hd44780_controller_tb.fst"
-[dumpfile_mtime] "Tue Oct 15 02:28:12 2019"
-[dumpfile_size] 4140
+[dumpfile_mtime] "Tue Oct 15 03:15:45 2019"
+[dumpfile_size] 4087
 [savefile] "/home/sean/dev/FPGA/FPGA_HD44780/settings/ctrlr_test.gtkw"
 [timestart] 0
 [size] 1331 713
 [pos] -1 -1
-*-10.743585 4011 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-10.743585 6900 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] hd44780_controller_tb.
 [treeopen] hd44780_controller_tb.cont.
 [sst_width] 223
@@ -26,12 +26,14 @@ hd44780_controller_tb.cont.STB_I
 @22
 hd44780_controller_tb.cont.read_data_reg[15:0]
 hd44780_controller_tb.cont.time_len[20:0]
-@29
+@28
 [color] 2
 hd44780_controller_tb.cont.timer_stb_reg
+@29
 [color] 2
-hd44780_controller_tb.cont.timer_end_stb
+hd44780_controller_tb.cont.timer_busy
 @28
+[color] 4
 hd44780_controller_tb.cont.single_nybble
 @22
 hd44780_controller_tb.cont.ctrl_state[3:0]
