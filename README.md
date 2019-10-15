@@ -5,6 +5,7 @@ Simple, write-only character LCD core
 
 ### The [project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki) is a development diary
 
+
 # overview
 
 * platform: [Gnarly Grey Upduino V2.0](https://github.com/gtjennings1/UPDuino_v2_0) - [Sold here](http://www.gnarlygrey.com/)
@@ -16,6 +17,18 @@ Simple, write-only character LCD core
     * verilator (planned - nothing implemented yet)
 * dev system: Ubuntu 18.04 laptop
 * Logic analyzer: [Inno-maker LA1010 16ch 100MHz](http://www.inno-maker.com/product/usb-logic-analyzer/) - [also at Amazon](https://smile.amazon.com/gp/product/B07D21GG6J/)
+
+## operation
+
+This set of modules comprises a **very** special-purpose 'computer' that can step through a list of instructions in RAM and execute them.
+
+The instructions consist of 1 or 2 4-bit quantities to be sent to the LCD module, plus register select signal, and a length of time to delay after sending. 
+
+The idea is that FPGA RAM can be preloaded with sets of instructions for initializing the LCD module, rendering literal strings, and so on, then the hd44780_controller module used to interpret them and drive the LCD.
+
+Instruction format documented [in the project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller).
+
+----
 
 # original notes
 
