@@ -1,6 +1,8 @@
 /*
   LiquidCrystal Library - Hello World
 
+ (Minor tweak by Sean Igo to use with a 20x4 display instead of 16x2)
+
  Demonstrates the use a 16x2 LCD display.  The LiquidCrystal
  library works with all LCD displays that are compatible with the
  Hitachi HD44780 driver. There are many of them out there, and you
