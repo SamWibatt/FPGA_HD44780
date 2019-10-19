@@ -1,0 +1,122 @@
+//4-bit initialization sequence from Donald Weiman's 2010 document.
+// Copyright © 2009, 2010, 2012 Donald Weiman
+// (weimandn@alfredstate.edu)
+// http://web.alfredstate.edu/faculty/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
+// This work is licensed under the Creative Commons Attribution-ShareAlike License.
+// To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/
+
+// 1. Power on, then caller must wait 100ms or more
+//    (which suggests the timer module doesn't need 100ms?
+//    let's keep it)
+
+// **************** ALL OF THE FOLLOWING HAVE RS = 0
+
+// pattern for "instructions" is
+// XX_S_TTT_N_R_DDDD_DDDD
+// where X = reserved, S = stop bit (1=last instr, 0 = not), T = time code (see below), N = 1 for single nybble, 0 for byte; R = RS
+// 000: no delay
+// 001: `define H4_DELAY_53US    (318)
+// 010: `define H4_DELAY_100US   (600)
+// 011: `define H4_DELAY_3MS     (18_000)
+// 100: `define H4_DELAY_4P1MS   (24_600)
+// 101: `define H4_DELAY_100MS   (600_000)
+
+
+// 2. single nybble 0011 (nybbles kept in lower 4 bits), special case of Function Set,
+//    wait 4.1ms = 100
+00_0_100_1_0_0000_0011
+
+// 3. singnyb 0011, nother spl fnset, wait 100us = 010
+00_0_010_1_0_0000_0011
+
+// 4. singnyb 0011, ", wait 100us = 010
+00_0_010_1_0_0000_0011
+
+// 5. singnyb 0010, fnset to change to 4bit? wait 100us = 010
+00_0_010_1_0_0000_0010
+
+// 6. byte 0010_nf00, fnset, 53us+ = 001
+//    find bits I used for N and F in vpok - N=1 means 2 lines (which 20x4 have),
+//    f=0 means 5x7 font, which we want, so
+//    0010_1000
+00_0_001_0_0_0010_1000
+
+// 7. byte 0000_1000, wait 53us = 001, display on/off
+//    this has bits d, c, and b, all 0 in this case,
+//    see what my old poker thing did
+//    Weiman doc says "The flow chart shows the instruction as 00001000, not 00001DCB which
+//    indicates that the Display (D), the Cursor (C), and the Blinking (B) should all be turned
+//    off by making the corresponding bits = 0." Sounds good to me
+00_0_001_0_0_0000_1000
+
+// 8. byte 0000_0001, wait 3ms = 011, clear display
+//    this is the kind of thing that we might want
+//    a special mode for controller, where you send
+//    FF for the address and it knows to just
+//    follow the instruction... which it finds where?
+00_0_011_0_0_0000_0001
+
+// 9. byte 0000_01I/DS - where I/D and S are some sort of config bits, 53uS = 001
+//    per Weiman's doc, We normally want the cursor to increment (move from left to right) and
+//    the display to not shift so we set I/D=1 and S=0.
+//    therefore, 0000_0110, 53us = 001
+00_0_001_0_0_0000_0110
+
+// that's it for init! Looks like you can switch
+// the display on and off subsequently - not reset,
+// but shut it off? with 0000_01CB, 53us.
+// investigate.
+
+//10. 0000_1100 53us = 001, display on - 0000_1DCB = D = 1 = disp on, C = 0 = cursor off, B = 0 = blink off
+//    so this one should also have the stop bit
+00_0_001_0_0_0000_1100 
+
+
+// Hello, Totoro part ----------------------------------------------------------------
+// bc there are 9 steps in init - the initial 100ms pause doesn't count - so this starts at addr 9, yes?
+// RS=1 for data
+
+
+// Will need to do a cursor position
+// where RS = 0, 1000_0000 is cmd; from vpok, these include that high-bit 1
+// ; lcdpos_line1		equ	0x80
+// ; lcdpos_line2		equ	0xC0
+// ; lcdpos_line3		equ	0x94
+// ; lcdpos_line4		equ	0xD4
+// first, line 1, and center, by starting at char 7, 0 - rel? 7 before, 6 chars, 7 after
+// so, we want 0x87, yes? =
+// 1000_0111, RS 0, 53 us = 001
+// XX_S_TTT_N_R_DDDD_DDDD
+00_0_001_0_0_1000_0111
+
+// per https://mil.ufl.edu/3744/docs/lcdmanual/characterset.html
+// maybe do a 53 us  = 001 after each? Weiman's example at
+// http://web.alfredstate.edu/faculty/weimandn/programming/lcd/ATmega328/LCD_code_gcc_4d.html
+// says 40 us min
+// Data: Hello,
+// H = 0100_1000
+00_0_001_0_1_0100_1000
+// e = 0110_0101
+00_0_001_0_1_0110_0101
+// l = 0110_1100
+00_0_001_0_1_0110_1100
+// l = 0110_1100
+00_0_001_0_1_0110_1100
+// o = 0110_1111
+00_0_001_0_1_0110_1111
+// , = 0010_1100
+00_0_001_0_1_0010_1100
+
+// nother cursor position, line 3, char 8 0-rel; 8 before, 4 chars, 8 after
+// RS = 0, 0x94 | 8 = 1001_1100 , I believe, or wait, is it +8 = 0x9C - which is the same, heh
+00_0_001_0_0_1001_1100
+
+// Totoro!
+// to = 1100_0100
+00_0_001_0_1_1100_0100
+// to = 1100_0100
+00_0_001_0_1_1100_0100
+// ro = 1101_1011
+00_0_001_0_1_1101_1011
+// !  = 0010_0001 with stop bit
+00_1_001_0_1_0010_0001
