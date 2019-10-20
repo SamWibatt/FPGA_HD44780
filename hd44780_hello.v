@@ -165,7 +165,8 @@ module hd44780_hello(
                 //try a completely undebounced button press - this is what the logic analyzer will watch for too
                 //looks pretty harmless.
                 button_has_been_pressed <= 1;
-                logan_strobe_reg <= 1;      // yay, fling logic analyzer strobe to a pin tt
+                //MOVING TO STATE MACHINE TO PUT AFTER 100ms wait
+                //logan_strobe_reg <= 1;      // yay, fling logic analyzer strobe to a pin tt
             end
         end
     end
@@ -175,7 +176,8 @@ module hd44780_hello(
     //capture it.
     assign wb_reset = syscon_reset | ~button_has_been_pressed;
     //logic analyzer waits for pos edge of this
-    assign logan_strobe = logan_strobe_reg;
+    // LET'S HAVE IT WAIT UNTIL AFTER THE 100ms - moving below
+    //assign logan_strobe = logan_strobe_reg;
 
 
     // alive-blinky wires:
@@ -187,6 +189,7 @@ module hd44780_hello(
     // end MULTI-USEFUL STUFF ===================================================================================
     //we need a ram and a controller. Here is the ram.
     parameter address_bits = 8, data_bits = 16;      // try a 256x16
+    localparam text_instr_addr = 16;                //@address in the init-totoro mem file, should make a tool that makes defines?
 
     reg [address_bits-1:0] start_addr = 0;
     reg [address_bits-1:0] addr_w_reg = 0;
@@ -255,19 +258,22 @@ module hd44780_hello(
 
 
     //so finally! Our state machine.
-    reg[2:0] hello_state = 0;
-    localparam hello_begin = 3'b000, hello_100ms_drop = 3'b001, hello_100ms_wait = 3'b010,
-        hello_drop = 3'b011, hello_wait = 3'b100, hello_lockup = 3'b101;
+    reg[3:0] hello_state = 0;
+    localparam hello_begin = 4'b0000, hello_100ms_drop = 4'b0001, hello_100ms_wait = 4'b0010,
+        hello_init_drop = 4'b0011, hello_init_wait = 4'b0100,
+        hello_text_begin = 4'b0101, hello_text_raise = 4'b0110, hello_text_drop = 4'b0111, hello_text_wait = 4'b1000,
+        hello_lockup = 4'b1001;
 
     always @(posedge wb_clk) begin
         case(hello_state)
             hello_begin: begin
-                //shut off LEDs 0 and 1 and 2 (active low) - block below handles 3
+                //shut off LEDs, all active low
                 reg_led0 <= 1;
                 reg_led1 <= 1;
                 reg_led2 <= 1;
+                reg_led3 <= 1;
                 htime_len <= `H4_DELAY_100MS;
-                //wait for button press then trigger controller?
+                //wait for button press then trigger controller
                 if(button_has_been_pressed) begin
                     //strobe timer
                     htimer_stb_reg <= 1;
@@ -286,19 +292,42 @@ module hd44780_hello(
                 if(~htimer_busy) begin
                     cont_stb <= 1;
                     reg_led1 <= 0;              //light led 1 active low meaning 100ms has elapsed
-                    hello_state <= hello_drop;
+                    logan_strobe_reg <= 1;      //for this test we wait until after the button and the 100ms.
+                    hello_state <= hello_init_drop;
                 end
             end
 
-            hello_drop: begin
+            hello_init_drop: begin
                 cont_stb <= 0;
-                hello_state <= hello_wait;
+                hello_state <= hello_init_wait;
             end
 
-            hello_wait: begin
+            hello_init_wait: begin
+                if(~cont_busy) begin
+                    reg_led2 <= 0;              //light led 2 active low meaning controller has finished init!
+                    hello_state <= hello_text_begin;
+                end
+            end
+
+            hello_text_begin: begin
+                start_addr <= text_instr_addr;      //load up the address of the text rendering list
+                hello_state <= hello_text_raise;
+            end
+
+            hello_text_raise: begin
+                cont_stb <= 1;
+                hello_state <= hello_text_drop;
+            end
+
+            hello_text_drop: begin
+                cont_stb <= 0;
+                hello_state <= hello_text_wait;
+            end
+
+            hello_text_wait: begin
                 //wait for controller busy to drop, and when it does, turn on led 2 (active low)
                 if(~cont_busy) begin
-                    reg_led2 <= 0;              //light led 2 active low meaning controller isn't busy 
+                    reg_led3 <= 0;          // light LED 3 (active low) showing that the text call is done.
                     hello_state <= hello_lockup;
                 end
             end
@@ -310,8 +339,17 @@ module hd44780_hello(
         endcase
     end
 
+    //logic analyzer waits for pos edge of this
+    assign logan_strobe = logan_strobe_reg;
 
-    // TESTER OF ALL LEDs =======================================================================================
+
+    // status LEDs in case NOTHING SEEMS TO HAPPEN we see how far it gets
+    assign o_led0 = reg_led0;     //act low
+    assign o_led1 = reg_led1;     //act low
+    assign o_led2 = reg_led2;     //act low
+    assign o_led3 = reg_led3;     //act low
+
+
     // Super simple "I'm Alive" blinky on one of the external LEDs. Copied from controller
     parameter GREENBLINKBITS = `H4_TIMER_BITS + 2;		//see if can adjust to sim or build clock speed			//25;			// at 12 MHz 23 is ok - it's kind of hyper at 48. KEY THIS TO GLOBAL SYSTEM CLOCK FREQ DEFINE
                                             // and hey why not define that in top or tb instead of in the controller or even on command line - ok
@@ -325,28 +363,6 @@ module hd44780_hello(
     assign led_b_outwire = greenblinkct[GREENBLINKBITS-1];
     assign led_r_outwire = ~greenblinkct[GREENBLINKBITS-2];
 
-
-    //mad alive blinkies
-
-    always @(posedge clk) begin
-        if(button_has_been_pressed) begin
-            //for top pure blinky, set all active low other-blinkies to off
-            //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
-            reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
-        end else begin
-            // glue LEDs off
-            reg_led3 <= 1;
-        end
-    end
-
-    //wire o_led0;     //set_io o_led0 36
-    assign o_led0 = reg_led0;     //act low
-    //wire o_led1;     //set_io o_led1 42
-    assign o_led1 = reg_led1;     //act low
-    //wire o_led2;     //set_io o_led2 38
-    assign o_led2 = reg_led2;     //act low
-    //wire o_led3;     //set_io o_led3 28
-    assign o_led3 = reg_led3;     //act low
 
 
 endmodule
