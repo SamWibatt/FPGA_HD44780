@@ -69,13 +69,16 @@
 
 //10. 0000_1100 53us = 001, display on - 0000_1DCB = D = 1 = disp on, C = 0 = cursor off, B = 0 = blink off
 //    so this one should also have the stop bit
-00_0_001_0_0_0000_1100 
+00_0_001_0_0_0000_1100
 
 
 // Hello, Totoro part ----------------------------------------------------------------
 // bc there are 9 steps in init - the initial 100ms pause doesn't count - so this starts at addr 9, yes?
 // RS=1 for data
-
+// but let's put it at addr 16, just to see how to do that.
+// per https://metacpan.org/pod/Verilog::Readmem ,
+// "Addresses are specified by a leading "at" character (@) and are always hexadecimal strings."
+@10
 
 // Will need to do a cursor position
 // where RS = 0, 1000_0000 is cmd; from vpok, these include that high-bit 1

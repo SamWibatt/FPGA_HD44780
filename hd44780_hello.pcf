@@ -1,0 +1,60 @@
+# OK THIS IS GOING TO BE REALLY DIFFERENT FROM ICESTICK
+# so the biggies are:
+# - i_clk is no longer a pin, I'll use the oscillator
+# - LEDs are active low.
+# here's the upduino_v2.pcf from osresearch with my changes
+# I will take -nowarn off all the ones I actually use
+
+# The RGB LED pins are using the current controlled outputs
+# and are negative logic (write a 0 to turn on).
+# need to bring red and blue in for the SB_RGBA_DRV
+set_io led_r	41
+set_io led_g	39
+set_io led_b	40
+
+# FTDI chip, which sort of works
+set_io -nowarn serial_txd 14 # FPGA transmit to USB
+set_io -nowarn serial_rxd 15 # FPGA receive from USB
+set_io -nowarn spi_cs 16 # Drive high to ensure that the SPI flash is disabled
+# set_io serial_rts_n 14  # no?
+# set_io serial_dtr_n 16  # no?
+
+# Normal GPIO pins, left side
+# sean notes let's put our alive-LEDs here. make them active low to be consistent with the RGB one
+# these were gpio_23, _25, _26, _27
+set_io lcd_data[0] 23
+set_io lcd_data[1] 25
+set_io lcd_data[2] 26
+set_io lcd_data[3] 27
+set_io -nowarn gpio_32 32
+set_io -nowarn gpio_35 35
+set_io -nowarn gpio_31 31
+# were gpio_37 and _34
+set_io lcd_rs 37
+set_io lcd_e 34
+# this was gpio_43, now logic analyzer strobe, have LA watch for this to go high
+set_io logan_strobe 43
+# these were gpio_36, 42, 38, 28
+set_io o_led0 36
+set_io o_led1 42
+set_io o_led2 38
+set_io o_led3 28
+
+# Normal GPIO pins, right side
+# button on pin 4
+set_io -nowarn i_bit0 12
+set_io -nowarn i_bit1 21
+set_io -nowarn i_bit2 13
+set_io -nowarn i_bit3 19
+set_io -nowarn i_bit4 18
+set_io -nowarn i_bit5 11
+set_io -nowarn i_bit6 9
+set_io -nowarn i_bit7 6
+set_io -nowarn gpio_44 44
+set_io the_button 4
+set_io -nowarn gpio_3 3
+set_io -nowarn gpio_48 48
+set_io -nowarn gpio_45 45
+set_io -nowarn gpio_47 47
+set_io -nowarn gpio_46 46
+set_io -nowarn gpio_2 2

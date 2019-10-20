@@ -226,7 +226,7 @@ module hd44780_controller(
     //input wire[ram_awidth-1:0] i_start_addr,          //address from which to start reading control words in the given ram.
     reg[ram_awidth-1:0] cur_addr_reg = 0;     //this acts like a current-addr / program counter, loaded at strobe from i_start_addr
     //input wire[ram_dwidth-1:0] i_read_data_lines,     //data returned from ram
-    reg[ram_dwidth-1:0] read_data_reg = 0;      //these register i_read_data_lines in the fetch cycle
+    reg[ram_dwidth-1:0] read_data_reg = 0; // = 16'b0000_0000_0000_0000;      //these register i_read_data_lines in the fetch cycle
 
 
     //state vars

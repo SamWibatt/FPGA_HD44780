@@ -3,8 +3,8 @@
 #echo "Usage 1:"
 #echo "./build.sh (hw target)"
 #echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\", \"ctrlr\" for the different tests we have - "
-#echo "state timer, nybble sender, byte sender, ram module, controller."
+#echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\", \"ctrlr\", \"hello\" for the different tests we have - "
+#echo "state timer, nybble sender, byte sender, ram module, controller, hello."
 #echo "Usage 2:"
 #echo "./build.sh sim [sim target]"
 #echo "where \"sim\" is a literal. Sim target defaults to ctrlr if not given."
@@ -21,8 +21,8 @@ then
 	echo "Usage 1:"
 	echo "./build.sh (hw target)"
 	echo "compiles using \"production\" settings (SIM_STEP not defined.) If everything compiles and places and packs up right, it will emit a .bin suitable for sending to hardware."
-	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\",\"ctrlr\" for the different tests we have - "
-	echo "state timer, nybble sender, byte sender, ram module, controller."
+	echo "Target is required. It's one of, sans quotes, \"timer\", \"nybsen\", \"bytesen\", \"ram\",\"ctrlr\",\"hello\" for the different tests we have - "
+	echo "state timer, nybble sender, byte sender, ram module, controller, hello."
 	echo "Usage 2:"
 	echo "./build.sh sim [sim target]"
 	echo "where \"sim\" is a literal. Sim target defaults to ctrlr if not given."
@@ -90,6 +90,27 @@ then
 	then
 		echo building ctrlr top
 		YS_BUILD_TARGET="LCD_TARGET_CONTROLLER"
+	elif [ "$target" == "hello" ]
+	then
+		echo building hello top
+		YS_BUILD_TARGET="LCD_TARGET_HELLO"
+
+		# let's do a special case here
+		yosys -p "read_verilog hd44780_timer.v; read_verilog hd44780_nybsen.v; read_verilog hd44780_syscon.v; \
+			read_verilog hd44780_ram.v; read_verilog hd44780_controller.v; read_verilog hd44780_hello.v; \
+			synth_ice40 -top hd44780_hello; write_json hd44780_hello.json"
+		#used to just be yosys "$proj".ys
+
+		# nextpnr does place-and-route, associating the design with the particular hardware layout
+		# given in the .pcf.
+		nextpnr-ice40 --"$device" --package "$package" --json "hd44780_hello.json" --pcf "hd44780_hello.pcf" --asc "hd44780_hello.asc"
+
+		# icepack converts nextpnr's output to a bitstream usable by the target hardware.
+		icepack hd44780_hello.asc hd44780_hello.bin
+
+		echo "done building hello!"
+		exit 0
+
 	else
 		echo "UNRECOGNIZED TARGET ${target}"
 		exit 1
