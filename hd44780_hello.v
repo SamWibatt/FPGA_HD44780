@@ -240,19 +240,52 @@ module hd44780_hello(
     reg reg_led2 = 0;
     reg reg_led3 = 0;
 
+    //timer for initial 100ms
+    reg[`H4_TIMER_BITS-1:0] htime_len = 0;
+    reg htimer_stb_reg = 0;                       //start strobe
+    //wire ststrobe_wire = ststrobe;        //try this assign to see if start strobe will work with it
+    wire htimer_busy;
+    hd44780_state_timer stimey(
+        .RST_I(wb_reset),
+        .CLK_I(wb_clk),
+        .DAT_I(htime_len),
+        .start_strobe(htimer_stb_reg),
+        .busy(htimer_busy)
+        );
+
+
     //so finally! Our state machine.
-    reg[1:0] hello_state = 0;
-    localparam hello_begin = 2'b00, hello_drop = 2'b01, hello_wait = 2'b10, hello_lockup = 2'b11;
+    reg[2:0] hello_state = 0;
+    localparam hello_begin = 3'b000, hello_100ms_drop = 3'b001, hello_100ms_wait = 3'b010,
+        hello_drop = 3'b011, hello_wait = 3'b100, hello_lockup = 3'b101;
 
     always @(posedge wb_clk) begin
         case(hello_state)
             hello_begin: begin
-                //shut off LEDs 0 and 1 - block below handles 2 & 3
+                //shut off LEDs 0 and 1 and 2 (active low) - block below handles 3
                 reg_led0 <= 1;
                 reg_led1 <= 1;
+                reg_led2 <= 1;
+                htime_len <= `H4_DELAY_100MS;
                 //wait for button press then trigger controller?
                 if(button_has_been_pressed) begin
+                    //strobe timer
+                    htimer_stb_reg <= 1;
+                    hello_state <= hello_100ms_drop;
+                    reg_led0 <= 0;              //light led 0 active low meaning button pressed
+                end
+            end
+
+            hello_100ms_drop: begin
+                htimer_stb_reg <= 0;
+                hello_state <= hello_100ms_wait;
+            end
+
+            hello_100ms_wait: begin
+                //wait for timer to finish
+                if(~htimer_busy) begin
                     cont_stb <= 1;
+                    reg_led1 <= 0;              //light led 1 active low meaning 100ms has elapsed
                     hello_state <= hello_drop;
                 end
             end
@@ -260,14 +293,12 @@ module hd44780_hello(
             hello_drop: begin
                 cont_stb <= 0;
                 hello_state <= hello_wait;
-                //turn on LED 0 meaning the strobe has been raised
-                reg_led0 <= 0;
             end
 
             hello_wait: begin
-                //wait for controller busy to drop, and when it does, turn on led 1 (active low)
+                //wait for controller busy to drop, and when it does, turn on led 2 (active low)
                 if(~cont_busy) begin
-                    reg_led1 <= 0;
+                    reg_led2 <= 0;              //light led 2 active low meaning controller isn't busy 
                     hello_state <= hello_lockup;
                 end
             end
@@ -301,11 +332,9 @@ module hd44780_hello(
         if(button_has_been_pressed) begin
             //for top pure blinky, set all active low other-blinkies to off
             //this was failing with the assigns below when I had <= 1 here; bad driver sort of sitch?
-            reg_led2 <= greenblinkct[GREENBLINKBITS-3];
             reg_led3 <= ~greenblinkct[GREENBLINKBITS-4];
         end else begin
             // glue LEDs off
-            reg_led2 <= 1;
             reg_led3 <= 1;
         end
     end
