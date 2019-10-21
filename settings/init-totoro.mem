@@ -69,7 +69,7 @@
 
 //10. 0000_1100 53us = 001, display on - 0000_1DCB = D = 1 = disp on, C = 0 = cursor off, B = 0 = blink off
 //    so this one should also have the stop bit
-00_0_001_0_0_0000_1100
+00_1_001_0_0_0000_1100
 
 
 // Hello, Totoro part ----------------------------------------------------------------
