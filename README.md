@@ -22,7 +22,7 @@ This is a project I'm using to teach myself programmable logic, so I don't (yet)
 
 ![Greetings to My Neighbor](https://raw.githubusercontent.com/wiki/SamWibatt/FPGA_HD44780/images/HelloTotoroFPGA.jpg)
 
-Shown here on a breadboard with some extraneous stuff - the circuit proper is the UpduinoV2.0 in the upper right, plus the LEDs and 74HCT541 level shifter just to the left of it, the button to the far left, then the contrast potentiometer and display module on the lower breadboard. Also on board, a few header pins connected to nothing, a couple of USB breakout boards connected to nothing, and an iceStick evaluation board and homemade power supply/level shifter in the lower left.
+Here shown with some extraneous stuff on the breadboards - in the upper left, a couple of micro-usb breakouts I may use for supplying 5V to other circuits, plus a couple rows of header pins not connected to anything; lower left, a Lattice iceStick evaluation board and a little homemade power supply and 74HCT541 level shifter (which I may use instead of the USB breakouts and the separate HCT541.) The circuit itself is the UpduinoV2 in the upper right, the LEDs and HCT541 in the middle of the upper breadboard, plus the contrast potentiometer and LCD display itself in the lower right.
 
 ## operation
 
@@ -34,7 +34,7 @@ The idea is that FPGA RAM can be preloaded with sets of instructions for initial
 
 Instruction format documented [in the project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller).
 
-Here shown with some extraneous stuff on the breadboards - in the upper left, a couple of micro-usb breakouts I may use for supplying 5V to other circuits, plus a couple rows of header pins not connected to anything; lower left, a Lattice iceStick evaluation board and a little homemade power supply and 74HCT541 level shifter (which I may use instead of the USB breakouts and the separate HCT541.) The circuit itself is the UpduinoV2 in the upper right, the LEDs and HCT541 in the middle of the upper breadboard, plus the contrast potentiometer and LCD display itself in the lower right.
+
 
 ----
 
