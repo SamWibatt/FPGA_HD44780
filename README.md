@@ -20,6 +20,8 @@ This is a project I'm using to teach myself programmable logic, so I don't (yet)
 * dev system: Ubuntu 18.04 laptop
 * Logic analyzer: [Inno-maker LA1010 16ch 100MHz](http://www.inno-maker.com/product/usb-logic-analyzer/) - [also at Amazon](https://smile.amazon.com/gp/product/B07D21GG6J/)
 
+![Greetings to My Neighbor](https://raw.githubusercontent.com/wiki/SamWibatt/FPGA_HD44780/images/HelloTotoroFPGA.jpg)
+
 ## operation
 
 This set of modules comprises a **very** special-purpose 'computer' that can step through a list of instructions in RAM and execute them.
