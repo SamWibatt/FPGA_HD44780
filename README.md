@@ -22,6 +22,8 @@ This is a project I'm using to teach myself programmable logic, so I don't (yet)
 
 ![Greetings to My Neighbor](https://raw.githubusercontent.com/wiki/SamWibatt/FPGA_HD44780/images/HelloTotoroFPGA.jpg)
 
+Shown here on a breadboard with some extraneous stuff - the circuit proper is the UpduinoV2.0 in the upper right, plus the LEDs and 74HCT541 level shifter just to the left of it, the button to the far left, then the contrast potentiometer and display module on the lower breadboard. Also on board, a few header pins connected to nothing, a couple of USB breakout boards connected to nothing, and an iceStick evaluation board and homemade power supply/level shifter in the lower left.
+
 ## operation
 
 This set of modules comprises a **very** special-purpose 'computer' that can step through a list of instructions in RAM and execute them.
