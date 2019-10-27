@@ -42,6 +42,8 @@ Here is the test circuit shown above. The UpduinoV2 is based on [the Upduino V2.
 * When you press the button, the circuit will go through LCD initialization and render the Hello, トトロ message.
 * The LEDs D0-D3 are status lights that show the circuit has reached certain stages in execution.
     * D0 lights after the 100mS initial pause
+    * FINISH WRITING UP!
+ * LA_Stb is a strobe out to logic analyzer to trigger capture.
 
 ## what it does
 
