@@ -1,7 +1,9 @@
 # FPGA_HD44780
 Simple, write-only character LCD core
 
-## work in progress. This is a project I'm using to teach myself programmable logic, so I don't (yet) recommend using it. As of this writing on 10/15/19, it doesn't yet work. I'm making the project public so anyone interested can see the process I'm going through for design, as well as my current skill level.
+## work in progress. 
+
+This is a project I'm using to teach myself programmable logic, so I don't (yet) recommend using it. As of this writing on 10/22/19, [it can initialize the LCD and write a test message!](https://github.com/SamWibatt/FPGA_HD44780/wiki/Goal-5-Hello,-%E3%83%88%E3%83%88%E3%83%AD#it-works) And has the capacity to render other text and use all HD44780 commands (as far as I know!) I'm making the project public so anyone interested can see the process I'm going through for design, as well as my current skill level.
 
 ### The [project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki) is a development diary
 
@@ -18,6 +20,10 @@ Simple, write-only character LCD core
 * dev system: Ubuntu 18.04 laptop
 * Logic analyzer: [Inno-maker LA1010 16ch 100MHz](http://www.inno-maker.com/product/usb-logic-analyzer/) - [also at Amazon](https://smile.amazon.com/gp/product/B07D21GG6J/)
 
+![Greetings to My Neighbor](https://raw.githubusercontent.com/wiki/SamWibatt/FPGA_HD44780/images/HelloTotoroFPGA.jpg)
+
+Here shown with some extraneous stuff on the breadboards - in the upper left, a couple of micro-usb breakouts I may use for supplying 5V to other circuits, plus a couple rows of header pins not connected to anything; lower left, a Lattice iceStick evaluation board and a little homemade power supply and 74HCT541 level shifter (which I may use instead of the USB breakouts and the separate HCT541.) The circuit itself is the UpduinoV2 in the upper right, the LEDs and HCT541 in the middle of the upper breadboard, plus the contrast potentiometer and LCD display itself in the lower right.
+
 ## operation
 
 This set of modules comprises a **very** special-purpose 'computer' that can step through a list of instructions in RAM and execute them.
@@ -27,6 +33,8 @@ The instructions consist of 1 or 2 4-bit quantities to be sent to the LCD module
 The idea is that FPGA RAM can be preloaded with sets of instructions for initializing the LCD module, rendering literal strings, and so on, then the hd44780_controller module used to interpret them and drive the LCD.
 
 Instruction format documented [in the project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller).
+
+
 
 ----
 
