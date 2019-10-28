@@ -54,6 +54,8 @@ It's also sort of within spec to use the 3.3V logic signals as direct inputs, wi
     * D0 lights after the 100mS initial pause
     * FINISH WRITING UP!
  * LA_Stb is a strobe out to logic analyzer to trigger capture.
+ * POINT OUT THAT THE LEDs and LA_STB ARE NOT NECESSARY TO THE MODULES' OPERATION
+     * and maybe make a define to compile them out
 
 ## what it does
 
