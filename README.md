@@ -32,9 +32,11 @@ Here is the test circuit shown above. The UpduinoV2 is based on [the Upduino V2.
 
 **Note:** if you're not familiar with the 74HCT541, all it does is to buffer logic signals. That is, the input at A0 is repeated at Y0, A1 to Y1, etc. They're handy for interfacing 3.3V logic to 5V logic - if you power the HCT541 with 5V, it happens that a "high" 3.3V input at Ai appears as a 5V high on Yi. Only one direction, though, you can't turn a 5v input back into 3.3v. which is ok for this circuit because all the signals only go one way. Used in this manner the HCT541 is acting as a "level shifter."
 
-Also, as long as EXPLAIN IT DUNT MATTER WHICH A/Y PAIR YOU USE FOR WHICH SIGNAL SO LONG AS THE RIGHT FPGA OUTPUT GOES TO THE RIGHT LCD INPUT.
+Also, the particular pin you use for a signal isn't important, as long as the correct FPGA pin ultimately connects to the correct LCD pin. For instance, pin 34 of the Upduino V2 must connect to pin 6 of the LCD through one of the Ai/Yi pairs on the HCT541, but it could be any of A0/Y0 - A7/Y7. Arrange it in whatever way is convenient (the test circuit pictured above uses different buffers than the schematic.)
 
-## building
+It is possible to run the LCD with a 3.3V supply, but that requires that the contrast voltage at pin 3 have a negative voltage applied. I wired it up according to what I had on hand and understood. One advantage of doing it that way is that you could use the bidirectional bus mode on the LCD and check for its "busy" flag instead of waiting for minimum processing times to elapse. Out of scope for this project.
+
+## building the test
 
 `./build.sh hello` should yield a hd44780_hello.bin after a great deal of yosys console output.
 
