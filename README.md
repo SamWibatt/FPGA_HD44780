@@ -52,13 +52,21 @@ It's also sort of within spec to use the 3.3V logic signals as direct inputs, wi
 
 ## operation
 
-* On powerup, the RGB LED on the upduino v2 board should start stepping through different colors, and the LCD should show the black bars that character LCDs show on powerup. You can adjust the potentiometer RV1 at this point to get the contrast right.
+* On powerup, the RGB LED on the upduino v2 board should start stepping through different colors, and the LCD should show the black bars that character LCDs show on powerup. 
+    * You can adjust the potentiometer RV1 at this point to get the contrast right.
+    * If nothing shows on the LCD, it may be the contrast is wrong; if you run the contrast potentiometer all the way through its range and nothing ever shows, there's trouble of some sort. 
+    * The display I used is an old one. I tested it with an Arduino Uno and [a tiny tweak to the Arduino LiquidCrystal library's "hello" example](https://github.com/SamWibatt/FPGA_HD44780/blob/master/arduino/HelloWorld20x4/HelloWorld20x4.ino). I recommend doing something similar if you've not used character LCDs before; it's a much easier way to work with them.
 * When you press the button, the circuit will go through LCD initialization and render the Hello, トトロ message.
-* The LEDs D0-D3 are status lights that show the circuit has reached certain stages in execution.
-    * D0 lights after the 100mS initial pause
-    * FINISH WRITING UP!
- * LA_Stb is a strobe out to logic analyzer to trigger capture.
- * POINT OUT THAT THE LEDs and LA_STB ARE NOT NECESSARY TO THE MODULES' OPERATION
+* The off-board LEDs D0-D3 are status lights that show the circuit has reached certain stages in execution.
+    * all are active low, all should be off when the circuit is powered up.
+    * D0 lights when the button is pressed
+    * D1 when the 100ms initial delay has elapsed
+    * D2 after LCD initialization script has completed
+    * D3 after sample text rendered.
+    * this way, you can tell how far the test circuit *thinks* it's gotten. 
+* LA_Stb is a strobe out to logic analyzer to trigger capture.
+    * It is raised after the button is pressed and the 100ms post-power-on delay has elapsed. That way, the logic analyzer doesn't have to record 100ms' worth of cycles before getting to the interesting stuff.
+* The LEDs and LA_stb are not necessary to the LCD controller module's operation.
      * They're not in the module itself, just in the "hello" test framework
 
 ## what it does
