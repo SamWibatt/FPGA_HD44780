@@ -1,5 +1,7 @@
 # FPGA_HD44780
-Simple, write-only character LCD core
+Simple, write-only character LCD core in 4-bit mode. Intended for use in debugging but would work as a display library.
+
+** ADD MUX INPUT!
 
 ## work in progress. 
 
