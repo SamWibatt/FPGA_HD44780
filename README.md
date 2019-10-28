@@ -30,7 +30,9 @@ Here shown with some extraneous stuff on the breadboards - in the upper left, a 
 
 Here is the test circuit shown above. The UpduinoV2 is based on [the Upduino V2.0 Cheat Sheet by Matt Mets @cibomahto](https://github.com/cibomahto/upduino/blob/master/upduino_v2.0_pinout.png), from which I made a KiCad part - which is not currently and may never be suitable for use in creating circuit boards; I just made it for schematics like this, and laid it out so that the pins are in the same relative positions that they are on the real board. Not the custom with schematic symbols but I think this will help people see how to wire it up (I suppose I should learn Fritzing if I want to make wiring diagrams.)
 
-**Note:** if you're not familiar with the 74HCT541, all it does is to buffer logic signals. That is, the input at A0 is repeated at Y0, A1 to Y1, etc. They're intended for cases where the input signals can't drive much current and have to drive several logic inputs (the output still isn't lots of current, in terms of driving LEDs or motors or anything.)
+**Note:** One complication in interfacing a character LCD to the Upduino V2 is that the FPGA uses 3.3V logic levels and the displays (typically) 5V. I got around that by using a 74HCT541.
+
+If you're not familiar with the 74HCT541, all it does is to buffer logic signals. That is, the input at A0 is repeated at Y0, A1 to Y1, etc. They're intended for cases where the input signals can't drive much current and have to drive several logic inputs (the output still isn't lots of current, in terms of driving LEDs or motors or anything.)
 
 They're handy for interfacing 3.3V logic to 5V logic - if you power the HCT541 with 5V, it happens that a "high" 3.3V input at Ai appears as a 5V high on Yi. Only one direction, though, you can't turn a 5v input back into 3.3v. which is ok for this circuit because all the signals only go one way. Used in this manner the HCT541 is acting as a "level shifter."
 
