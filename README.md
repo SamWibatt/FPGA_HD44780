@@ -65,6 +65,10 @@ The idea is that FPGA RAM can be preloaded with sets of instructions for initial
 
 Instruction format documented [in the project wiki](https://github.com/SamWibatt/FPGA_HD44780/wiki/RAM-entry-format-for-controller).
 
+## creating your own "scripts"
+
+**HERE WRITE UP THE TOOL THAT LETS YOU CREATE .MEM FILES BUT I HAVEN'T WRITTEN IT YET**
+
 ## acknowledgements
 
 * I am hugely indebted to Donald Weiman for the [LCD Initialization page (4 bit section)](http://web.alfredstate.edu/faculty/weimandn/lcd/lcd_initialization/lcd_initialization_index.html). That page is Copyright © 2009, 2010, 2012 Donald Weiman     (weimandn@alfredstate.edu), licensed under the Creative Commons Attribution-ShareAlike License.   To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/3.0/
