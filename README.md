@@ -38,6 +38,8 @@ Also, the particular pin you use for a signal isn't important, as long as the co
 
 It is possible to run the LCD with a 3.3V supply, but that requires that the contrast voltage at pin 3 have a negative voltage applied. I wired it up according to what I had on hand and understood. One advantage of doing it that way is that you could use the bidirectional bus mode on the LCD and check for its "busy" flag instead of waiting for minimum processing times to elapse. Out of scope for this project.
 
+It's also sort of within spec to use the 3.3V logic signals as direct inputs, with no level shifting, to the LCD logic pins when the LCD is powered with 5V. The tolerances are too close for my peace of mind but I won't come to your lab and stop you from trying it.
+
 ## building the test
 
 `./build.sh hello` should yield a hd44780_hello.bin after a great deal of yosys console output.
