@@ -40,7 +40,7 @@ They're handy for interfacing 3.3V logic to 5V logic - if you power the HCT541 w
 
 Also, the particular pin you use for a signal isn't important, as long as the correct FPGA pin ultimately connects to the correct LCD pin. For instance, pin 34 of the Upduino V2 must connect to pin 6 of the LCD through one of the Ai/Yi pairs on the HCT541, but it could be any of A0/Y0 - A7/Y7. Arrange it in whatever way is convenient (the test circuit pictured above uses different buffers than the schematic.)
 
-It is possible to run the LCD with a 3.3V supply, but that requires that the contrast voltage at pin 3 have a negative voltage applied. I wired it up according to what I had on hand and understood. One advantage of doing it that way is that you could use the bidirectional bus mode on the LCD and check for its "busy" flag instead of waiting for minimum processing times to elapse. Out of scope for this project.
+It is possible to run the LCD with a 3.3V supply, but that requires that the contrast voltage at pin 3 have a negative voltage applied. I wired it up according to what I had on hand and understood. One advantage of doing it that way is that you could use the bidirectional bus mode on the LCD and check for its "busy" flag instead of waiting for minimum processing times to elapse. Out of scope for this project. (See e.g. https://www.codrey.com/electronic-circuits/hack-your-16x2-lcd/ which has instructions for building an off-module inverter circuit too.) **note to self try this**
 
 It's also sort of within spec to use the 3.3V logic signals as direct inputs, with no level shifting, to the LCD logic pins when the LCD is powered with 5V. The tolerances are too close for my peace of mind but I won't come to your lab and stop you from trying it.
 
