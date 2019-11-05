@@ -1,8 +1,6 @@
 # FPGA_HD44780
 Simple, write-only character LCD core in 4-bit mode. Intended for use in debugging but would work as a display library.
 
-** ADD MUX INPUT!
-
 ## work in progress. 
 
 This is a project I'm using to teach myself programmable logic, so I don't (yet) recommend using it. As of this writing on 10/22/19, [it can initialize the LCD and write a test message!](https://github.com/SamWibatt/FPGA_HD44780/wiki/Goal-5-Hello,-%E3%83%88%E3%83%88%E3%83%AD#it-works) And has the capacity to render other text and use all HD44780 commands (as far as I know!) I'm making the project public so anyone interested can see the process I'm going through for design, as well as my current skill level.
@@ -42,7 +40,9 @@ Also, the particular pin you use for a signal isn't important, as long as the co
 
 It is possible to run the LCD with a 3.3V supply, but that requires that the contrast voltage at pin 3 have a negative voltage applied. I wired it up according to what I had on hand and understood. One advantage of doing it that way is that you could use the bidirectional bus mode on the LCD and check for its "busy" flag instead of waiting for minimum processing times to elapse. Out of scope for this project. (See e.g. https://www.codrey.com/electronic-circuits/hack-your-16x2-lcd/ which has instructions for building an off-module inverter circuit too.) 
 
-**note** on 11/5/19 I tried this with a [TI TL7660 Negative Voltage Converter (pdf datasheet linked)](http://www.ti.com/lit/ds/symlink/tl7660.pdf), and wiring up the chip is super easy. The chip itself is $1.55 in single quantity from Digi-Key and two small cheap 10uF/16V electrolytics should be plenty for this use. Breadboarded it in a couple minutes and the output pin was throwing out a nice clean -3.3V.
+**note** on 11/5/19 I tried a [TI TL7660 Negative Voltage Converter (pdf datasheet linked)](http://www.ti.com/lit/ds/symlink/tl7660.pdf), and wiring up the chip is super easy. The chip itself is $1.55 in single quantity from Digi-Key and two small cheap 10uF/16V electrolytics should be plenty for this use. Breadboarded it in a couple minutes and the output pin was throwing out a nice clean -3.3V.
+
+I wired up the display to use it and see if 3.3V all around will work - AND YES!!! Need to make the schematic for that, too.
 
 It's also sort of within spec to use the 3.3V logic signals as direct inputs, with no level shifting, to the LCD logic pins when the LCD is powered with 5V. The tolerances are too close for my peace of mind but I won't come to your lab and stop you from trying it.
 
